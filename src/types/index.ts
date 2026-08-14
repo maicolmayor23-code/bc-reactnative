@@ -1,12 +1,9 @@
 // ============================================================
 // TYPES — src/types/index.ts
 // ============================================================
-// Define aquí la interfaz del elemento de tu dominio asignado.
-// Este type se usará en mockData.ts, ItemCard.tsx y HomeScreen.tsx
+// Define la interfaz del elemento del dominio asignado: DJ / Sonido e Iluminación.
 // ============================================================
 
-// TODO: Renombra esta interfaz con el nombre de tu elemento
-// Ejemplos: Book, Medication, Member, Dish, Movie, Destination
 export type EquipmentCategory = 'DJ Gear' | 'Sonido' | 'Iluminación' | 'Efectos FX';
 export type EquipmentAvailability = 'Disponible' | 'En Alquiler';
 
@@ -21,4 +18,6 @@ export interface Item {
   pricePerDay: number;
   availability: EquipmentAvailability;
   imageUri: string;
+  rating?: number;
 }
+

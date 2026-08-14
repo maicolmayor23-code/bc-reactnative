@@ -1,15 +1,10 @@
 // ============================================================
 // MOCK DATA — src/data/mockData.ts
 // ============================================================
-// Datos de ejemplo para tu dominio asignado.
-// Reemplaza estos datos con información coherente a tu dominio.
+// Catálogo completo de equipos para el dominio DJ / Sonido e Iluminación (10+ items).
 // ============================================================
 
 import { Item } from '../types';
-
-// TODO: Reemplaza los valores por datos reales de tu dominio
-// Usa imágenes representativas — puedes usar URLs de picsum.photos
-// o incluir imágenes locales en assets/
 
 export const MOCK_ITEMS: Item[] = [
   {
@@ -20,6 +15,7 @@ export const MOCK_ITEMS: Item[] = [
     pricePerDay: 85,
     availability: 'Disponible',
     imageUri: 'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?auto=format&fit=crop&w=600&q=80',
+    rating: 4.9,
   },
   {
     id: '2',
@@ -29,6 +25,7 @@ export const MOCK_ITEMS: Item[] = [
     pricePerDay: 180,
     availability: 'Disponible',
     imageUri: 'https://images.unsplash.com/photo-1545454675-3531b543be5d?auto=format&fit=crop&w=600&q=80',
+    rating: 5.0,
   },
   {
     id: '3',
@@ -38,6 +35,7 @@ export const MOCK_ITEMS: Item[] = [
     pricePerDay: 50,
     availability: 'Disponible',
     imageUri: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?auto=format&fit=crop&w=600&q=80',
+    rating: 4.8,
   },
   {
     id: '4',
@@ -47,6 +45,7 @@ export const MOCK_ITEMS: Item[] = [
     pricePerDay: 40,
     availability: 'En Alquiler',
     imageUri: 'https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?auto=format&fit=crop&w=600&q=80',
+    rating: 4.7,
   },
   {
     id: '5',
@@ -56,5 +55,56 @@ export const MOCK_ITEMS: Item[] = [
     pricePerDay: 25,
     availability: 'Disponible',
     imageUri: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=600&q=80',
+    rating: 4.9,
+  },
+  {
+    id: '6',
+    name: 'Behringer X32 Compact',
+    category: 'Sonido',
+    subtitle: 'Consola de mezcla digital de 40 entradas y 25 buses con faders motorizados',
+    pricePerDay: 130,
+    availability: 'Disponible',
+    imageUri: 'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?auto=format&fit=crop&w=600&q=80',
+    rating: 4.9,
+  },
+  {
+    id: '7',
+    name: 'Láser Robótico RGB 3W DMX',
+    category: 'Iluminación',
+    subtitle: 'Proyector láser show profesional con más de 100 patrones programados',
+    pricePerDay: 70,
+    availability: 'En Alquiler',
+    imageUri: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?auto=format&fit=crop&w=600&q=80',
+    rating: 4.6,
+  },
+  {
+    id: '8',
+    name: 'JBL EON715 1300W',
+    category: 'Sonido',
+    subtitle: 'Altavoz amplificado de 15 pulgadas con Bluetooth y DSP avanzado',
+    pricePerDay: 45,
+    availability: 'Disponible',
+    imageUri: 'https://images.unsplash.com/photo-1545454675-3531b543be5d?auto=format&fit=crop&w=600&q=80',
+    rating: 4.8,
+  },
+  {
+    id: '9',
+    name: 'Shure BLX24/SM58',
+    category: 'Sonido',
+    subtitle: 'Sistema de micrófono inalámbrico de mano profesional de largo alcance',
+    pricePerDay: 35,
+    availability: 'Disponible',
+    imageUri: 'https://images.unsplash.com/photo-1520523839897-bd0b52f945a0?auto=format&fit=crop&w=600&q=80',
+    rating: 5.0,
+  },
+  {
+    id: '10',
+    name: 'Chauvet ShowXpress DMX',
+    category: 'Iluminación',
+    subtitle: 'Controlador de iluminación USB/DMX con software de programación en vivo',
+    pricePerDay: 30,
+    availability: 'Disponible',
+    imageUri: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?auto=format&fit=crop&w=600&q=80',
+    rating: 4.7,
   },
 ];

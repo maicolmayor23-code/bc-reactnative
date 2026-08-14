@@ -2,7 +2,7 @@
 // COMPONENT: ItemCard
 // ============================================================
 // Tarjeta reutilizable para mostrar un elemento del dominio.
-// Este componente se renderiza por cada item en HomeScreen.
+// Utiliza las constantes del sistema de theming (COLORS, TYPOGRAPHY, SPACING).
 // ============================================================
 
 import React from 'react';
@@ -14,6 +14,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { Item } from '../types';
+import { COLORS, TYPOGRAPHY, SPACING } from '../theme';
 
 interface ItemCardProps {
   item: Item;
@@ -75,107 +76,106 @@ export function ItemCard({ item, onPress }: ItemCardProps): React.JSX.Element {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#161b22',
+    backgroundColor: COLORS.surface,
     borderRadius: 16,
-    marginBottom: 16,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#30363d',
+    borderColor: COLORS.border,
   },
   cardPressed: {
     opacity: 0.85,
-    borderColor: '#38bdf8',
+    borderColor: COLORS.primary,
   },
   cardImage: {
     width: '100%',
     height: 180,
   },
   cardBody: {
-    padding: 16,
+    padding: SPACING.lg,
   },
   badgeRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: SPACING.sm,
   },
   categoryBadge: {
-    backgroundColor: '#1f293d',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    backgroundColor: COLORS.primaryDim,
+    paddingHorizontal: SPACING.sm + 2,
+    paddingVertical: SPACING.xs,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#38bdf8',
+    borderColor: COLORS.primary,
   },
   categoryText: {
-    color: '#38bdf8',
-    fontSize: 12,
-    fontWeight: '600',
+    color: COLORS.primary,
+    fontSize: TYPOGRAPHY.fontSizeSM,
+    fontWeight: TYPOGRAPHY.fontWeightSemiBold,
   },
   statusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingHorizontal: SPACING.sm + 2,
+    paddingVertical: SPACING.xs,
     borderRadius: 8,
   },
   statusAvailable: {
-    backgroundColor: 'rgba(34, 197, 94, 0.15)',
+    backgroundColor: COLORS.successBg,
   },
   statusRented: {
-    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    backgroundColor: COLORS.errorBg,
   },
   statusText: {
-    fontSize: 12,
-    fontWeight: '600',
+    fontSize: TYPOGRAPHY.fontSizeSM,
+    fontWeight: TYPOGRAPHY.fontWeightSemiBold,
   },
   statusAvailableText: {
-    color: '#4ade80',
+    color: COLORS.success,
   },
   statusRentedText: {
-    color: '#f87171',
+    color: COLORS.error,
   },
   cardName: {
-    fontSize: 19,
-    fontWeight: 'bold',
-    color: '#ffffff',
-    marginBottom: 4,
+    fontSize: TYPOGRAPHY.fontSizeXL - 1,
+    fontWeight: TYPOGRAPHY.fontWeightBold,
+    color: COLORS.textPrimary,
+    marginBottom: SPACING.xs,
   },
   cardSubtitle: {
-    fontSize: 14,
-    color: '#8b949e',
+    fontSize: TYPOGRAPHY.fontSizeMD,
+    color: COLORS.textSecondary,
     lineHeight: 20,
-    marginBottom: 14,
+    marginBottom: SPACING.md,
   },
   cardFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: 12,
+    paddingTop: SPACING.md,
     borderTopWidth: 1,
-    borderTopColor: '#21262d',
+    borderTopColor: COLORS.surfaceAlt,
   },
   priceContainer: {
     flexDirection: 'column',
   },
   priceLabel: {
-    fontSize: 11,
-    color: '#6e7681',
+    fontSize: TYPOGRAPHY.fontSizeXS,
+    color: COLORS.textMuted,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   priceValue: {
-    fontSize: 17,
-    fontWeight: 'bold',
-    color: '#38bdf8',
+    fontSize: TYPOGRAPHY.fontSizeLG + 1,
+    fontWeight: TYPOGRAPHY.fontWeightBold,
+    color: COLORS.primary,
   },
   actionButton: {
     backgroundColor: '#238636',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.sm,
     borderRadius: 8,
   },
   actionButtonText: {
-    color: '#ffffff',
-    fontSize: 13,
-    fontWeight: 'bold',
+    color: COLORS.textPrimary,
+    fontSize: TYPOGRAPHY.fontSizeSM + 1,
+    fontWeight: TYPOGRAPHY.fontWeightBold,
   },
 });
