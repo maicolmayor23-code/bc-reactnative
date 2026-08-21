@@ -6,6 +6,9 @@
 // ============================================================
 
 import React, { useState, useMemo, useCallback } from 'react';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { HomeStackParamList } from '../navigation/types';
 import {
   View,
   Text,
@@ -26,7 +29,10 @@ import { ItemCard } from '../components/ItemCard';
 import { MOCK_ITEMS } from '../data/mockData';
 import { COLORS, TYPOGRAPHY, SPACING } from '../theme';
 
+type HomeScreenNavigationProp = NativeStackNavigationProp<HomeStackParamList, 'HomeList'>;
+
 export function HomeScreen(): React.JSX.Element {
+  const navigation = useNavigation<HomeScreenNavigationProp>();
   const DOMAIN_TITLE = 'Beat & Light Pro';
   const DOMAIN_SUBTITLE = 'Catálogo de Equipos de DJ, Sonido e Iluminación';
 
@@ -50,11 +56,14 @@ export function HomeScreen(): React.JSX.Element {
   }, [searchQuery]);
 
   /**
-   * Manejador de selección de un equipo.
+   * Manejador de selección de un equipo -> Navega a HomeDetail pasando id y name.
    */
-  const handleItemPress = useCallback((item: Item): void => {
-    console.log('Equipo seleccionado:', item.name, `($${item.pricePerDay}/día)`);
-  }, []);
+  const handleItemPress = useCallback(
+    (item: Item): void => {
+      navigation.navigate('HomeDetail', { id: item.id, name: item.name });
+    },
+    [navigation]
+  );
 
   /**
    * Callback para renderizar cada tarjeta en la FlatList.
