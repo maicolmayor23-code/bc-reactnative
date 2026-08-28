@@ -22,6 +22,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { MOCK_ITEMS } from '../data/mockData';
 import { COLORS, TYPOGRAPHY, SPACING } from '../theme';
 import { HomeStackParamList } from '../navigation/types';
+import { useSavedStore } from '../stores/savedStore';
 
 type DetailRouteProp = RouteProp<HomeStackParamList, 'HomeDetail'>;
 type DetailNavigationProp = NativeStackNavigationProp<HomeStackParamList, 'HomeDetail'>;
@@ -32,6 +33,10 @@ export function DetailScreen(): React.JSX.Element {
 
   // Extracción de parámetros enviados desde el Stack
   const { id, name } = route.params;
+
+  // Selectores específicos de Zustand para evitar re-renders innecesarios
+  const isSaved = useSavedStore((state) => state.savedItems.some((equip) => equip.id === id));
+  const toggleSaveItem = useSavedStore((state) => state.toggleSaveItem);
 
   // Buscar item en MOCK_ITEMS por id
   const item = useMemo(() => {
@@ -135,6 +140,20 @@ export function DetailScreen(): React.JSX.Element {
               <Text style={styles.bulletItem}>✓ Limpieza y sanitización de componentes</Text>
             </View>
           </View>
+
+          {/* Botón interactivo del Store Zustand: Guardar / Quitar */}
+          <Pressable
+            style={({ pressed }) => [
+              styles.saveButton,
+              isSaved ? styles.saveButtonActive : styles.saveButtonInactive,
+              pressed && styles.reserveButtonPressed,
+            ]}
+            onPress={() => toggleSaveItem(item)}
+          >
+            <Text style={[styles.saveButtonText, isSaved && styles.saveButtonTextActive]}>
+              {isSaved ? '❤️ En Mis Equipos (Quitar)' : '⭐ Guardar en Mis Equipos'}
+            </Text>
+          </Pressable>
 
           {/* Botón de Acción Principal */}
           <Pressable
@@ -375,13 +394,37 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
 
-  // Botón Reserva
+  // Botón Reserva y Guardar Zustand
+  saveButton: {
+    paddingVertical: SPACING.md,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginBottom: SPACING.xs,
+    borderWidth: 1,
+  },
+  saveButtonInactive: {
+    backgroundColor: COLORS.surfaceAlt,
+    borderColor: COLORS.primary,
+  },
+  saveButtonActive: {
+    backgroundColor: '#da3633',
+    borderColor: '#f85149',
+  },
+  saveButtonText: {
+    color: COLORS.primary,
+    fontSize: TYPOGRAPHY.fontSizeMD + 1,
+    fontWeight: TYPOGRAPHY.fontWeightBold,
+  },
+  saveButtonTextActive: {
+    color: '#ffffff',
+  },
+
   reserveButton: {
     backgroundColor: COLORS.primary,
     paddingVertical: SPACING.lg,
     borderRadius: 12,
     alignItems: 'center',
-    marginTop: SPACING.md,
+    marginTop: SPACING.sm,
   },
   reserveButtonDisabled: {
     backgroundColor: COLORS.surfaceAlt,

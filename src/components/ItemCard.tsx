@@ -2,6 +2,7 @@
 // COMPONENT: ItemCard
 // ============================================================
 // Tarjeta reutilizable para mostrar un elemento del dominio.
+// Integra el estado global de Zustand para guardar/quitar directamente.
 // Utiliza las constantes del sistema de theming (COLORS, TYPOGRAPHY, SPACING).
 // ============================================================
 
@@ -15,6 +16,7 @@ import {
 } from 'react-native';
 import { Item } from '../types';
 import { COLORS, TYPOGRAPHY, SPACING } from '../theme';
+import { useSavedStore } from '../stores/savedStore';
 
 interface ItemCardProps {
   item: Item;
@@ -24,6 +26,12 @@ interface ItemCardProps {
 export function ItemCard({ item, onPress }: ItemCardProps): React.JSX.Element {
   const isAvailable = item.availability === 'Disponible';
 
+  // Selectores específicos de Zustand
+  const isSaved = useSavedStore((state) =>
+    state.savedItems.some((saved) => saved.id === item.id)
+  );
+  const toggleSaveItem = useSavedStore((state) => state.toggleSaveItem);
+
   return (
     <Pressable
       style={({ pressed }) => [
@@ -32,11 +40,25 @@ export function ItemCard({ item, onPress }: ItemCardProps): React.JSX.Element {
       ]}
       onPress={() => onPress(item)}
     >
-      <Image
-        source={{ uri: item.imageUri }}
-        style={styles.cardImage}
-        resizeMode="cover"
-      />
+      <View style={styles.imageWrapper}>
+        <Image
+          source={{ uri: item.imageUri }}
+          style={styles.cardImage}
+          resizeMode="cover"
+        />
+        {/* Botón rápido de favorito/guardado con el store Zustand */}
+        <Pressable
+          style={({ pressed }) => [
+            styles.heartButton,
+            isSaved && styles.heartButtonSaved,
+            pressed && styles.heartButtonPressed,
+          ]}
+          onPress={() => toggleSaveItem(item)}
+          hitSlop={8}
+        >
+          <Text style={styles.heartIcon}>{isSaved ? '❤️' : '🤍'}</Text>
+        </Pressable>
+      </View>
 
       <View style={styles.cardBody}>
         {/* Fila de Badges de Categoría y Disponibilidad */}
@@ -66,7 +88,7 @@ export function ItemCard({ item, onPress }: ItemCardProps): React.JSX.Element {
             <Text style={styles.priceValue}>${item.pricePerDay} USD</Text>
           </View>
           <View style={styles.actionButton}>
-            <Text style={styles.actionButtonText}>Reservar</Text>
+            <Text style={styles.actionButtonText}>Ver Ficha</Text>
           </View>
         </View>
       </View>
@@ -83,12 +105,40 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border,
   },
   cardPressed: {
-    opacity: 0.85,
+    opacity: 0.9,
     borderColor: COLORS.primary,
+  },
+  imageWrapper: {
+    position: 'relative',
+    width: '100%',
+    height: 180,
   },
   cardImage: {
     width: '100%',
-    height: 180,
+    height: '100%',
+  },
+  heartButton: {
+    position: 'absolute',
+    top: SPACING.md,
+    right: SPACING.md,
+    backgroundColor: 'rgba(13, 17, 23, 0.75)',
+    borderRadius: 20,
+    width: 38,
+    height: 38,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  heartButtonSaved: {
+    backgroundColor: 'rgba(218, 54, 51, 0.85)',
+    borderColor: '#f85149',
+  },
+  heartButtonPressed: {
+    transform: [{ scale: 0.9 }],
+  },
+  heartIcon: {
+    fontSize: 18,
   },
   cardBody: {
     padding: SPACING.lg,
@@ -168,13 +218,13 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
   },
   actionButton: {
-    backgroundColor: '#238636',
+    backgroundColor: COLORS.primary,
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.sm,
     borderRadius: 8,
   },
   actionButtonText: {
-    color: COLORS.textPrimary,
+    color: COLORS.textInverse,
     fontSize: TYPOGRAPHY.fontSizeSM + 1,
     fontWeight: TYPOGRAPHY.fontWeightBold,
   },

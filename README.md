@@ -1,6 +1,6 @@
-# 🎧 Beat & Light Pro — Proyecto Semana 03: React Navigation 7
+# 🎧 Beat & Light Pro — Proyecto Semana 04: Estado Global con Zustand
 
-Aplicación móvil profesional desarrollada en **React Native + TypeScript** para el dominio **DJ / Sonido y luces**. Cuenta con una arquitectura de navegación completa usando **React Navigation 7** con **Tab Navigator** y **Stack Navigator anidado**, permitiendo explorar, filtrar, ver el detalle técnico y gestionar equipos favoritos para eventos y producciones espectaculares.
+Aplicación móvil profesional desarrollada en **React Native + TypeScript** para el dominio **DJ / Sonido y luces**. Cuenta con una arquitectura de navegación con **React Navigation 7** (Tab + Stack Navigator anidado) e integración de **Estado Global con Zustand** para gestionar los equipos guardados/favoritos en tiempo real entre pantallas.
 
 ---
 
@@ -21,37 +21,32 @@ Aplicación móvil profesional desarrollada en **React Native + TypeScript** par
 
 ---
 
-## ✨ Características Implementadas (Semana 03 — React Navigation 7)
+## ✨ Características Implementadas (Semana 04 — Zustand)
 
-1. **Tab Navigator Raíz (`RootNavigator.tsx`)**:
-   - Barra de navegación inferior con dos pestañas principales: **Inicio** (`HomeTab`) y **Favoritos** (`FavoritesTab`).
-   - Íconos vectoriales dinámicos usando `@expo/vector-icons` (`Ionicons`: `disc` / `disc-outline` para Inicio, `heart` / `heart-outline` para Favoritos).
-   - Estilizado de pestañas activas con la propiedad `tabBarActiveTintColor: '#61DAFB'` (según especificación).
+1. **Store Global Zustand (`src/stores/savedStore.ts`)**:
+   - Creado mediante la función `create<SavedEquipmentStore>()` con TypeScript estricto y cero `any`.
+   - Estado `savedItems: Item[]` compartido entre todas las pestañas de la aplicación.
+   - Acciones tipadas: `toggleSaveItem`, `removeItem` y `clearSaved`.
 
-2. **Stack Navigator Anidado (`HomeStackNavigator`)**:
-   - Pila de pantallas dentro de la pestaña principal que gestiona el flujo de **Lista (`HomeList`) → Detalle (`HomeDetail`)**.
-   - Encabezado nativo personalizado con colores acordes al tema nocturno/cyberpunk (`#161b22`).
-   - Botón automático de retroceso (`goBack`) y títulos dinámicos con el nombre del equipo seleccionado.
+2. **Badge Dinámico en Tiempo Real (Tab Bar)**:
+   - Configurado en `RootNavigator.tsx` leyendo la cantidad de elementos directamente desde el store con un selector optimizado: `useSavedStore(state => state.savedItems.length)`.
+   - Muestra el número exacto de ítems guardados en la pestaña **Favoritos** de forma reactiva (sin *prop drilling*).
 
-3. **Paso y Recepción de Parámetros Tipados**:
-   - Navegación estricta desde `HomeScreen` enviando los parámetros `{ id: item.id, name: item.name }`.
-   - Lectura de parámetros en `DetailScreen` mediante `useRoute<RouteProp<HomeStackParamList, 'HomeDetail'>>()`.
-   - Cero uso de `any`, 100% compliant con TypeScript estricto.
+3. **Acciones Interactivas en Detalle (`DetailScreen.tsx`)**:
+   - Incorpora el botón `"⭐ Guardar en Mis Equipos"` / `"❤️ En Mis Equipos (Quitar)"` conectado al store global.
+   - Permite agregar o remover el equipo del estado global en tiempo real.
 
-4. **Pantalla de Detalle (`DetailScreen.tsx`)**:
-   - Muestra la ficha técnica completa del equipo (fotografía en alta resolución, badges de categoría y disponibilidad, valoración en estrellas, precio diario de alquiler).
-   - Desglose de especificaciones técnicas (SKU, uso recomendado, cableado y transporte incluido).
-   - Botón interactivo de solicitud de reserva según el estado de inventario.
+4. **Gestión de Lista en Segunda Pestaña (`FavoritesScreen.tsx`)**:
+   - Consume el store global `savedItems` mediante selectores optimizados.
+   - Incluye botón de acción global `"🗑️ Limpiar Todo"` invocando `clearSaved()`.
+   - Renderiza un *Empty State* adaptado cuando la lista de producción está vacía.
 
-5. **Pantalla de Favoritos (`FavoritesScreen.tsx`)**:
-   - Renderiza un `FlatList` con los equipos destacados / favoritos del catálogo (rating >= 4.9).
-   - Permite navegar directamente al detalle de cualquier equipo favorito.
+5. **Guardado Rápido en Tarjeta (`ItemCard.tsx`)**:
+   - Ícono flotante de favorito que permite alternar el estado del equipo directamente desde la lista del catálogo.
 
-6. **Herencia de Optimizaciones (Semana 02)**:
-   - Virtualización con `FlatList` (`keyExtractor`, `ItemSeparatorComponent`, `ListEmptyComponent`).
-   - Filtrado reactivo en tiempo real con `useMemo` y `useCallback`.
-   - Envoltura con `KeyboardAvoidingView` y descarte accesible del teclado.
-   - Sistema de Theming centralizado (`src/theme/index.ts`).
+6. **Cumplimiento de Buenas Prácticas**:
+   - Uso obligatorio de **selectores específicos** (`useSavedStore(state => state.property)`) para evitar re-renders innecesarios.
+   - TypeScript estricto validado sin errores.
 
 ---
 
@@ -61,23 +56,25 @@ Aplicación móvil profesional desarrollada en **React Native + TypeScript** par
 bc-reactnative-week-02/
 ├── App.tsx                    ← NavigationContainer raíz
 ├── app.json                   ← Configuración de Expo
-├── package.json               ← Dependencias exactas (React Navigation 7, @expo/vector-icons)
+├── package.json               ← Dependencias (React Navigation 7, Zustand 5.0)
 ├── tsconfig.json              ← Configuración TypeScript estricta
-├── README.md                  ← Documentación del proyecto
+├── README.md                  ← Documentación actualizada
 └── src/
+    ├── stores/
+    │   └── savedStore.ts      ← Store Zustand (savedItems, toggleSaveItem, clearSaved)
     ├── navigation/
-    │   ├── RootNavigator.tsx  ← Tab Navigator + Stack Navigator anidado
-    │   └── types.ts           ← RootTabParamList y HomeStackParamList (sin any)
+    │   ├── RootNavigator.tsx  ← Tab Navigator con Badge dinámico de Zustand
+    │   └── types.ts           ← Tipado estricto de navegación
     ├── screens/
-    │   ├── HomeScreen.tsx     ← Lista de equipos con FlatList + TextInput (HomeList)
-    │   ├── DetailScreen.tsx   ← Ficha técnica con params del Stack (HomeDetail)
-    │   └── FavoritesScreen.tsx← Segunda pestaña con ítems favoritos (FavoritesTab)
+    │   ├── HomeScreen.tsx     ← Catálogo con FlatList y TextInput (HomeList)
+    │   ├── DetailScreen.tsx   ← Ficha técnica con botón Guardar/Quitar (HomeDetail)
+    │   └── FavoritesScreen.tsx← Pestaña de guardados alimentada por Zustand
     ├── components/
-    │   └── ItemCard.tsx       ← Tarjeta reutilizable estilizada con theme
+    │   └── ItemCard.tsx       ← Tarjeta reutilizable con botón rápido de favorito
     ├── data/
     │   └── mockData.ts        ← 10 items reales de DJ, Sonido y Luces
     ├── theme/
-    │   └── index.ts           ← Sistema de diseño (COLORS, TYPOGRAPHY, SPACING)
+    │   └── index.ts           ← Sistema de diseño centralizado
     └── types/
         └── index.ts           ← Interfaz e ItemTypes del dominio
 ```
@@ -103,7 +100,7 @@ pnpm start
 
 ## 📊 Verificación de Tipos TypeScript
 
-Para validar que todo el código cumple con TypeScript estricto y no contiene errores de tipos ni `any`:
+Para validar que el código cumple con TypeScript estricto y no contiene errores de tipos ni `any`:
 
 ```bash
 npx tsc --noEmit

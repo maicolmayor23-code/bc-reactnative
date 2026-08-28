@@ -14,6 +14,7 @@ import { DetailScreen } from '../screens/DetailScreen';
 import { FavoritesScreen } from '../screens/FavoritesScreen';
 import { HomeStackParamList, RootTabParamList } from './types';
 import { COLORS } from '../theme';
+import { useSavedStore } from '../stores/savedStore';
 
 const Stack = createNativeStackNavigator<HomeStackParamList>();
 const Tab = createBottomTabNavigator<RootTabParamList>();
@@ -52,8 +53,12 @@ function HomeStackNavigator(): React.JSX.Element {
 
 /**
  * Tab Navigator Raíz con dos pestañas: Inicio y Favoritos.
+ * Incluye un badge dinámico en la pestaña Favoritos sincronizado con Zustand.
  */
 export function RootNavigator(): React.JSX.Element {
+  // Selector optimizado desde el store Zustand (sin prop drilling)
+  const savedCount = useSavedStore((state) => state.savedItems.length);
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -93,7 +98,16 @@ export function RootNavigator(): React.JSX.Element {
       <Tab.Screen
         name="FavoritesTab"
         component={FavoritesScreen}
-        options={{ title: 'Favoritos' }}
+        options={{
+          title: 'Favoritos',
+          tabBarBadge: savedCount > 0 ? savedCount : undefined,
+          tabBarBadgeStyle: {
+            backgroundColor: COLORS.primary,
+            color: COLORS.textInverse,
+            fontSize: 11,
+            fontWeight: 'bold',
+          },
+        }}
       />
     </Tab.Navigator>
   );
