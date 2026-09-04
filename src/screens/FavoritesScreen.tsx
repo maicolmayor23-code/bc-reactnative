@@ -20,7 +20,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Item } from '../types';
-import { ItemCard } from '../components/ItemCard';
+import { EquipmentCard } from '../components/EquipmentCard';
 import { COLORS, TYPOGRAPHY, SPACING } from '../theme';
 import { FavoritesScreenProps } from '../navigation/types';
 import { useSavedStore } from '../stores/savedStore';
@@ -51,7 +51,7 @@ export function FavoritesScreen(): React.JSX.Element {
    * Renderizado de cada tarjeta en la lista.
    */
   const renderItem: ListRenderItem<Item> = useCallback(
-    ({ item }) => <ItemCard item={item} onPress={handleItemPress} />,
+    ({ item }) => <EquipmentCard item={item} onPress={handleItemPress} />,
     [handleItemPress]
   );
 

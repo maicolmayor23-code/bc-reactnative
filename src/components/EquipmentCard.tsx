@@ -1,8 +1,8 @@
 // ============================================================
-// COMPONENT: ItemCard
+// COMPONENT: EquipmentCard (src/components/EquipmentCard.tsx)
 // ============================================================
-// Tarjeta reutilizable para mostrar un elemento del dominio.
-// Integra el estado global de Zustand para guardar/quitar directamente.
+// Tarjeta reutilizable para mostrar un equipo del dominio DJ / Sonido y Luces.
+// Integra el estado global de Zustand para guardar/quitar de favoritos.
 // Utiliza las constantes del sistema de theming (COLORS, TYPOGRAPHY, SPACING).
 // ============================================================
 
@@ -14,19 +14,19 @@ import {
   Pressable,
   StyleSheet,
 } from 'react-native';
-import { Item } from '../types';
+import { Equipment } from '../types';
 import { COLORS, TYPOGRAPHY, SPACING } from '../theme';
 import { useSavedStore } from '../stores/savedStore';
 
-interface ItemCardProps {
-  item: Item;
-  onPress: (item: Item) => void;
+interface EquipmentCardProps {
+  item: Equipment;
+  onPress: (item: Equipment) => void;
 }
 
-export function ItemCard({ item, onPress }: ItemCardProps): React.JSX.Element {
+export function EquipmentCard({ item, onPress }: EquipmentCardProps): React.JSX.Element {
   const isAvailable = item.availability === 'Disponible';
 
-  // Selectores específicos de Zustand
+  // Selectores específicos de Zustand para UI State (Favoritos)
   const isSaved = useSavedStore((state) =>
     state.savedItems.some((saved) => saved.id === item.id)
   );
@@ -95,6 +95,10 @@ export function ItemCard({ item, onPress }: ItemCardProps): React.JSX.Element {
     </Pressable>
   );
 }
+
+// Exportaciones nombradas y por defecto para compatibilidad total de IDE
+export const ItemCard = EquipmentCard;
+export default EquipmentCard;
 
 const styles = StyleSheet.create({
   card: {

@@ -2,11 +2,11 @@
 // SCREEN: DetailScreen
 // ============================================================
 // Pantalla de Detalle de Equipo (DJ / Sonido e Iluminación).
-// Lee los parámetros recibidos del Stack Navigator (id y name)
-// y muestra la ficha técnica completa con opciones de reserva.
+// Consume el Server State mediante useEquipmentById(id) con TanStack Query v5.
+// Mantiene Zustand exclusivamente para el UI State (Guardar/Favorito local).
 // ============================================================
 
-import React, { useMemo } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -16,10 +16,11 @@ import {
   Pressable,
   SafeAreaView,
   StatusBar,
+  ActivityIndicator,
 } from 'react-native';
 import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { MOCK_ITEMS } from '../data/mockData';
+import { useEquipmentById } from '../hooks/useEquipmentById';
 import { COLORS, TYPOGRAPHY, SPACING } from '../theme';
 import { HomeStackParamList } from '../navigation/types';
 import { useSavedStore } from '../stores/savedStore';
@@ -31,19 +32,29 @@ export function DetailScreen(): React.JSX.Element {
   const route = useRoute<DetailRouteProp>();
   const navigation = useNavigation<DetailNavigationProp>();
 
-  // Extracción de parámetros enviados desde el Stack
+  // Extracción de parámetros enviados desde el Stack Navigator
   const { id, name } = route.params;
 
-  // Selectores específicos de Zustand para evitar re-renders innecesarios
+  // Consulta del Server State a través de custom hook con TanStack Query
+  const { data: item, isLoading, isError, error } = useEquipmentById(id);
+
+  // Selector de Zustand exclusivamente para UI State (Favoritos locales)
   const isSaved = useSavedStore((state) => state.savedItems.some((equip) => equip.id === id));
   const toggleSaveItem = useSavedStore((state) => state.toggleSaveItem);
 
-  // Buscar item en MOCK_ITEMS por id
-  const item = useMemo(() => {
-    return MOCK_ITEMS.find((equip) => equip.id === id);
-  }, [id]);
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
+        <View style={styles.errorContainer}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+          <Text style={styles.loadingText}>Cargando detalle del equipo...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
-  if (!item) {
+  if (isError || !item) {
     return (
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
@@ -51,7 +62,7 @@ export function DetailScreen(): React.JSX.Element {
           <Text style={styles.errorIcon}>⚠️</Text>
           <Text style={styles.errorTitle}>Equipo no encontrado</Text>
           <Text style={styles.errorSubtitle}>
-            No se encontraron datos para el equipo con ID: "{id}" ({name}).
+            {error?.message ?? `No se encontraron datos para el equipo: "${name}".`}
           </Text>
           <Pressable style={styles.backButton} onPress={() => navigation.goBack()}>
             <Text style={styles.backButtonText}>Volver al catálogo</Text>
@@ -107,7 +118,7 @@ export function DetailScreen(): React.JSX.Element {
             </View>
           </View>
 
-          {/* Sección de Especificaciones Técnicas del Dominio */}
+          {/* Especificaciones Técnicas */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Especificaciones Técnicas</Text>
             <View style={styles.specGrid}>
@@ -117,7 +128,7 @@ export function DetailScreen(): React.JSX.Element {
               </View>
               <View style={styles.specItem}>
                 <Text style={styles.specLabel}>Identificador</Text>
-                <Text style={styles.specValue}>SKU-{item.id.padStart(4, '0')}</Text>
+                <Text style={styles.specValue}>SKU-{String(item.id).padStart(4, '0')}</Text>
               </View>
               <View style={styles.specItem}>
                 <Text style={styles.specLabel}>Uso Recomendado</Text>
@@ -141,7 +152,7 @@ export function DetailScreen(): React.JSX.Element {
             </View>
           </View>
 
-          {/* Botón interactivo del Store Zustand: Guardar / Quitar */}
+          {/* Botón interactivo del Store Zustand (UI State): Guardar / Quitar */}
           <Pressable
             style={({ pressed }) => [
               styles.saveButton,
@@ -183,13 +194,17 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: SPACING.xxxl,
   },
-
-  // Error State
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: SPACING.xl,
+  },
+  loadingText: {
+    marginTop: SPACING.md,
+    color: COLORS.textPrimary,
+    fontSize: TYPOGRAPHY.fontSizeLG,
+    fontWeight: TYPOGRAPHY.fontWeightBold,
   },
   errorIcon: {
     fontSize: 48,
@@ -217,8 +232,6 @@ const styles = StyleSheet.create({
     color: COLORS.textInverse,
     fontWeight: TYPOGRAPHY.fontWeightBold,
   },
-
-  // Imagen
   imageContainer: {
     width: '100%',
     height: 240,
@@ -245,8 +258,6 @@ const styles = StyleSheet.create({
     fontWeight: TYPOGRAPHY.fontWeightBold,
     fontSize: TYPOGRAPHY.fontSizeSM,
   },
-
-  // Contenido Ficha
   contentContainer: {
     padding: SPACING.xl,
   },
@@ -309,8 +320,6 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     marginBottom: SPACING.xl,
   },
-
-  // Tarjeta Precio
   priceCard: {
     backgroundColor: COLORS.surface,
     padding: SPACING.lg,
@@ -349,8 +358,6 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.fontSizeXS,
     fontWeight: TYPOGRAPHY.fontWeightBold,
   },
-
-  // Secciones
   section: {
     marginBottom: SPACING.xl,
   },
@@ -383,8 +390,6 @@ const styles = StyleSheet.create({
     fontWeight: TYPOGRAPHY.fontWeightSemiBold,
     color: COLORS.textPrimary,
   },
-
-  // Lista
   bulletList: {
     gap: SPACING.sm,
   },
@@ -393,8 +398,6 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     lineHeight: 20,
   },
-
-  // Botón Reserva y Guardar Zustand
   saveButton: {
     paddingVertical: SPACING.md,
     borderRadius: 12,
@@ -418,7 +421,6 @@ const styles = StyleSheet.create({
   saveButtonTextActive: {
     color: '#ffffff',
   },
-
   reserveButton: {
     backgroundColor: COLORS.primary,
     paddingVertical: SPACING.lg,

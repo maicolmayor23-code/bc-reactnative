@@ -1,107 +1,111 @@
-# 🎧 Beat & Light Pro — Proyecto Semana 04: Estado Global con Zustand
+# 🎧 Beat & Light Pro — Proyecto Semana 05: Networking y TanStack Query v5
 
-Aplicación móvil profesional desarrollada en **React Native + TypeScript** para el dominio **DJ / Sonido y luces**. Cuenta con una arquitectura de navegación con **React Navigation 7** (Tab + Stack Navigator anidado) e integración de **Estado Global con Zustand** para gestionar los equipos guardados/favoritos en tiempo real entre pantallas.
-
----
-
-## 📋 Descripción del Dominio
-
-**Beat & Light Pro** es un sistema de gestión y reserva de equipos profesionales de audio, iluminación y efectos especiales para producciones de eventos.
-
-* **Dominio Asignado**: DJ / Sonido y luces
-* **Campos del Item**:
-  * `id`: Identificador único (string)
-  * `name`: Nombre del equipo / modelo (ej. Pioneer DDJ-FLX6, Kit Line Array EV 3000W)
-  * `category`: Categoría (`DJ Gear`, `Sonido`, `Iluminación`, `Efectos FX`)
-  * `subtitle`: Descripción técnica resumida
-  * `pricePerDay`: Precio diario de alquiler en USD
-  * `availability`: Estado de inventario (`Disponible` | `En Alquiler`)
-  * `imageUri`: Fotografía del producto
-  * `rating`: Calificación del equipo (ej. 4.9 / 5.0)
+Aplicación móvil profesional desarrollada en **React Native + TypeScript** para el dominio **DJ / Sonido y Luces**. Implementa la arquitectura oficial de la **Semana 05** combinando **Axios** e **TanStack Query v5** para la gestión del estado del servidor (*Server State*), junto con **Zustand** exclusivamente para el estado de la interfaz (*UI State* - Favoritos/Guardados).
 
 ---
 
-## ✨ Características Implementadas (Semana 04 — Zustand)
+## 🧠 Knowledge / Conceptos Teóricos para la Rúbrica
 
-1. **Store Global Zustand (`src/stores/savedStore.ts`)**:
-   - Creado mediante la función `create<SavedEquipmentStore>()` con TypeScript estricto y cero `any`.
-   - Estado `savedItems: Item[]` compartido entre todas las pestañas de la aplicación.
-   - Acciones tipadas: `toggleSaveItem`, `removeItem` y `clearSaved`.
+### Q1. Axios vs Fetch Nativo
 
-2. **Badge Dinámico en Tiempo Real (Tab Bar)**:
-   - Configurado en `RootNavigator.tsx` leyendo la cantidad de elementos directamente desde el store con un selector optimizado: `useSavedStore(state => state.savedItems.length)`.
-   - Muestra el número exacto de ítems guardados en la pestaña **Favoritos** de forma reactiva (sin *prop drilling*).
+* **¿Por qué Axios con `baseURL` evita repetir la URL base?**  
+  Con `fetch` nativo, se debe concatenar manualmente la URL completa (`https://api.dominio.com/equipments`) en cada llamada. Axios permite crear una instancia centralizada (`apiClient`) donde se define `baseURL`. De esta manera, cada llamada solo requiere la ruta relativa (`/equipments`), centralizando los cambios de entorno (desarrollo, staging, producción) en una sola variable (`process.env.EXPO_PUBLIC_API_URL`).
 
-3. **Acciones Interactivas en Detalle (`DetailScreen.tsx`)**:
-   - Incorpora el botón `"⭐ Guardar en Mis Equipos"` / `"❤️ En Mis Equipos (Quitar)"` conectado al store global.
-   - Permite agregar o remover el equipo del estado global en tiempo real.
+* **¿Para qué sirven los Interceptores?**  
+  Los interceptores son funciones middleware que se ejecutan automáticamente antes de enviar una solicitud (*Request Interceptor*) o inmediatamente al recibir una respuesta (*Response Interceptor*). Se utilizan principalmente para:
+  1. **Adjuntar tokens de autenticación**: Inyectar encabezados `Authorization: Bearer <token>` dinámicamente en cada request.
+  2. **Manejar errores HTTP de forma global**: Capturar errores 401 (sesión expirada para redirigir a login), 500 (errores de servidor), y garantizar que la `Promise` sea rechazada correctamente para que TanStack Query capture el estado de error (`isError`).
 
-4. **Gestión de Lista en Segunda Pestaña (`FavoritesScreen.tsx`)**:
-   - Consume el store global `savedItems` mediante selectores optimizados.
-   - Incluye botón de acción global `"🗑️ Limpiar Todo"` invocando `clearSaved()`.
-   - Renderiza un *Empty State* adaptado cuando la lista de producción está vacía.
-
-5. **Guardado Rápido en Tarjeta (`ItemCard.tsx`)**:
-   - Ícono flotante de favorito que permite alternar el estado del equipo directamente desde la lista del catálogo.
-
-6. **Cumplimiento de Buenas Prácticas**:
-   - Uso obligatorio de **selectores específicos** (`useSavedStore(state => state.property)`) para evitar re-renders innecesarios.
-   - TypeScript estricto validado sin errores.
+* **¿Cuándo un `fetch` simple sería suficiente?**  
+  Un `fetch` simple es suficiente en scripts aislados de una sola llamada, prototipos de concepto (PoC), o mini-aplicaciones que consumen una única API pública donde no se requiera configuración de `baseURL`, interceptores, manejo global de sesiones ni cancelación por `timeout`.
 
 ---
 
-## 🗂️ Estructura del Proyecto
+### Q2. `useQuery` en TanStack Query v5
+
+* **¿Qué representa `queryKey`?**  
+  La `queryKey` es un identificador único en forma de **arreglo** (ej. `['equipments']` o `['equipment', id]`) que utiliza TanStack Query para gestionar, almacenar en memoria y serializar el caché de la consulta. Permite invalidar, refrescar o compartir datos entre múltiples componentes de forma reactiva.
+
+* **¿Qué función cumple `queryFn`?**  
+  Es la función responsable de obtener los datos de la fuente remota. Debe retornar obligatoriamente una **Promise** que resuelva los datos tipados (por ejemplo, llamando a la función pura `fetchEquipments()` del servicio de Axios).
+
+* **Uso de `data`, `isLoading` e `isError`:**  
+  - `data`: Contiene el resultado resuelto por la `queryFn` (o `undefined` mientras carga).
+  - `isLoading`: Booleano en `true` únicamente durante la carga inicial cuando **no existen datos en caché**.
+  - `isError`: Booleano en `true` si la promesa del `queryFn` fue rechazada (ej. error 4xx o 5xx de red), permitiendo renderizar vistas de fallback.
+
+---
+
+### Q3. Invalidación de Caché (`invalidateQueries` vs `setQueryData`)
+
+* **¿Por qué se usa `invalidateQueries` en `onSuccess`?**  
+  Tras crear o modificar un recurso mediante `useMutation` (ej. `POST /equipments`), los datos guardados previamente en caché han quedado desactualizados. Al llamar a `queryClient.invalidateQueries({ queryKey: ['equipments'] })` dentro de `onSuccess`, se marca la query como **obsoleta (`stale`)**, lo cual desencadena automáticamente un **refetch en segundo plano** para refrescar la interfaz con los datos reales del servidor sin reiniciar la app.
+
+* **Diferencia clara entre `invalidateQueries` y `setQueryData`:**
+  - **`invalidateQueries`**: Invalida la marca de frescura del caché y provoca que TanStack Query realice una nueva petición HTTP GET al servidor para obtener el estado remoto actualizado.
+  - **`setQueryData`**: Modifica de manera **síncrona y directa** el contenido del caché local de TanStack Query en el cliente, sin realizar inmediatamente una petición al servidor (utilizado en actualizaciones optimistas).
+
+---
+
+## 🎯 Dominio Asignado
+* **Dominio**: DJ / Sonido y luces (Beat & Light Pro)
+* **Modelo de Datos (`Equipment`)**:
+  * `id`: string — Identificador único del equipo
+  * `name`: string — Modelo del equipo (ej. Pioneer CDJ-3000, Kit Line Array 3000W)
+  * `category`: `'DJ Gear' | 'Sonido' | 'Iluminación' | 'Efectos FX'`
+  * `subtitle`: string — Descripción técnica del equipo
+  * `pricePerDay`: number — Tarifa diaria de alquiler en USD
+  * `availability`: `'Disponible' | 'En Alquiler'`
+  * `imageUri`: string — Fotografía del producto
+  * `rating`: number — Calificación (ej. 4.9)
+
+---
+
+## 🏗️ Arquitectura de Capas
 
 ```text
-bc-reactnative-week-02/
-├── App.tsx                    ← NavigationContainer raíz
-├── app.json                   ← Configuración de Expo
-├── package.json               ← Dependencias (React Navigation 7, Zustand 5.0)
-├── tsconfig.json              ← Configuración TypeScript estricta
-├── README.md                  ← Documentación actualizada
-└── src/
-    ├── stores/
-    │   └── savedStore.ts      ← Store Zustand (savedItems, toggleSaveItem, clearSaved)
-    ├── navigation/
-    │   ├── RootNavigator.tsx  ← Tab Navigator con Badge dinámico de Zustand
-    │   └── types.ts           ← Tipado estricto de navegación
-    ├── screens/
-    │   ├── HomeScreen.tsx     ← Catálogo con FlatList y TextInput (HomeList)
-    │   ├── DetailScreen.tsx   ← Ficha técnica con botón Guardar/Quitar (HomeDetail)
-    │   └── FavoritesScreen.tsx← Pestaña de guardados alimentada por Zustand
-    ├── components/
-    │   └── ItemCard.tsx       ← Tarjeta reutilizable con botón rápido de favorito
-    ├── data/
-    │   └── mockData.ts        ← 10 items reales de DJ, Sonido y Luces
-    ├── theme/
-    │   └── index.ts           ← Sistema de diseño centralizado
-    └── types/
-        └── index.ts           ← Interfaz e ItemTypes del dominio
+Screens (src/screens/)
+  ├── HomeScreen.tsx         ← Consume useEquipments() (Lista, Loading, Error, Empty, Pull-to-refresh)
+  ├── DetailScreen.tsx       ← Consume useEquipmentById(id) + Zustand (Ficha técnica + Favoritos)
+  └── CreateScreen.tsx       ← Formulario con useCreateEquipment() e isPending
+       │
+       ▼
+Custom Hooks (src/hooks/)
+  ├── useEquipments.ts       ← Encapsula useQuery (queryKey: ['equipments'])
+  ├── useEquipmentById.ts    ← Encapsula useQuery (queryKey: ['equipment', id])
+  └── useCreateEquipment.ts  ← Encapsula useMutation e invalidateQueries(['equipments'])
+       │
+       ▼
+TanStack Query v5 (App.tsx)
+  └── QueryClientProvider configurado en la raíz con staleTime: 5 min y retry: 2
+       │
+       ▼
+Service Layer (src/services/)
+  ├── api.ts                ← Instancia Axios centralizada con timeout: 10s e Interceptors
+  └── equipmentService.ts   ← Funciones puras: fetchEquipments, fetchEquipmentById, createEquipment
+       │
+       ▼
+REST API (process.env.EXPO_PUBLIC_API_URL)
+  └── GET /equipments, GET /equipments/:id, POST /equipments
 ```
 
 ---
 
-## 🚀 Cómo Ejecutar el Proyecto
+## 💡 Separación Estricta de Estados (Server State vs UI State)
 
-```bash
-# 1. Instalar dependencias
-pnpm install
-
-# 2. Iniciar Metro Bundler con Expo CLI
-pnpm start
-
-# 3. Seleccionar simulador en la terminal de Expo:
-# Presionar 'a' para Android Emulator
-# Presionar 'i' para iOS Simulator
-# Presionar 'w' para Web
-```
+| Tipo de Estado | Tecnología | Responsabilidad |
+| :--- | :--- | :--- |
+| **Server State** | **TanStack Query v5** | Peticiones HTTP, caché remoto, estado de carga (`isLoading`), refetch (`isFetching`), reintentos e invalidación de caché. |
+| **UI State** | **Zustand** | Gestión local de equipos favoritos/guardados por el usuario (`savedItems`, `toggleSaveItem`, `clearSaved`). |
 
 ---
 
 ## 📊 Verificación de Tipos TypeScript
 
-Para validar que el código cumple con TypeScript estricto y no contiene errores de tipos ni `any`:
+Para validar que el proyecto cumple con TypeScript estricto sin errores ni uso de `any`:
 
 ```bash
 npx tsc --noEmit
 ```
+
+*Resultado esperado: 0 errores de compilación.*

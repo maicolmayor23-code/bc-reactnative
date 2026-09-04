@@ -1,8 +1,9 @@
 // ============================================================
 // SCREEN: HomeScreen
 // ============================================================
-// Pantalla principal: Header con título del dominio, búsqueda con
-// TextInput, filtrado dinámico con useMemo y virtualización con FlatList.
+// Pantalla principal: Consume el Server State vía useEquipments (useQuery).
+// Incluye estados de Loading (ActivityIndicator), Error (Mensaje + Reintentar),
+// Vacío (ListEmptyComponent) y Pull-to-refresh (onRefresh + isFetching).
 // ============================================================
 
 import React, { useState, useMemo, useCallback } from 'react';
@@ -22,11 +23,13 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
   Pressable,
+  ActivityIndicator,
+  TouchableOpacity,
   ListRenderItem,
 } from 'react-native';
 import { Item } from '../types';
-import { ItemCard } from '../components/ItemCard';
-import { MOCK_ITEMS } from '../data/mockData';
+import { EquipmentCard } from '../components/EquipmentCard';
+import { useEquipments } from '../hooks/useEquipments';
 import { COLORS, TYPOGRAPHY, SPACING } from '../theme';
 
 type HomeScreenNavigationProp = NativeStackNavigationProp<HomeStackParamList, 'HomeList'>;
@@ -38,25 +41,27 @@ export function HomeScreen(): React.JSX.Element {
 
   const [searchQuery, setSearchQuery] = useState<string>('');
 
+  // Consumo del Server State desde TanStack Query v5
+  const { data: equipments, isLoading, isError, error, isFetching, refetch } = useEquipments();
+
   /**
    * Filtrado dinámico optimizado con useMemo.
-   * Filtra los elementos según coincidencia en nombre, categoría o subtítulo.
    */
   const filteredItems = useMemo<Item[]>(() => {
+    const list = equipments ?? [];
     const query = searchQuery.trim().toLowerCase();
-    if (!query) {
-      return MOCK_ITEMS;
-    }
-    return MOCK_ITEMS.filter(
+    if (!query) return list;
+
+    return list.filter(
       (item) =>
         item.name.toLowerCase().includes(query) ||
         item.category.toLowerCase().includes(query) ||
         item.subtitle.toLowerCase().includes(query)
     );
-  }, [searchQuery]);
+  }, [equipments, searchQuery]);
 
   /**
-   * Manejador de selección de un equipo -> Navega a HomeDetail pasando id y name.
+   * Navegación al detalle del equipo.
    */
   const handleItemPress = useCallback(
     (item: Item): void => {
@@ -65,46 +70,82 @@ export function HomeScreen(): React.JSX.Element {
     [navigation]
   );
 
-  /**
-   * Callback para renderizar cada tarjeta en la FlatList.
-   */
   const renderItem: ListRenderItem<Item> = useCallback(
-    ({ item }) => <ItemCard item={item} onPress={handleItemPress} />,
+    ({ item }) => <EquipmentCard item={item} onPress={handleItemPress} />,
     [handleItemPress]
   );
 
-  /**
-   * Callback para extraer la key única del item (ID).
-   */
   const keyExtractor = useCallback((item: Item): string => item.id, []);
 
-  /**
-   * Componente separador visual entre elementos de la lista.
-   */
   const renderItemSeparator = useCallback(
     (): React.JSX.Element => <View style={styles.separator} />,
     []
   );
 
   /**
-   * Componente de Estado Vacío (Empty State) cuando la búsqueda no produce resultados.
+   * Componente de Estado Vacío (ListEmptyComponent)
    */
   const renderListEmpty = useCallback(
     (): React.JSX.Element => (
       <View style={styles.emptyContainer}>
-        <Text style={styles.emptyIcon}>🔍</Text>
-        <Text style={styles.emptyTitle}>Sin resultados encontrados</Text>
+        <Text style={styles.emptyIcon}>🎧</Text>
+        <Text style={styles.emptyTitle}>No hay equipos registrados</Text>
         <Text style={styles.emptySubtitle}>
-          No encontramos ningún equipo que coincida con "{searchQuery}". Prueba buscando con otro término o categoría.
+          {searchQuery
+            ? `No encontramos ningún equipo que coincida con "${searchQuery}".`
+            : 'No hay equipos disponibles en el inventario. ¡Puedes registrar el primero!'}
         </Text>
-        <Pressable style={styles.clearSearchButton} onPress={() => setSearchQuery('')}>
-          <Text style={styles.clearSearchText}>Limpiar búsqueda</Text>
-        </Pressable>
+        {searchQuery ? (
+          <Pressable style={styles.actionButton} onPress={() => setSearchQuery('')}>
+            <Text style={styles.actionButtonText}>Limpiar búsqueda</Text>
+          </Pressable>
+        ) : (
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => navigation.navigate('CreateEquipment')}
+          >
+            <Text style={styles.actionButtonText}>➕ Registrar Nuevo Equipo</Text>
+          </TouchableOpacity>
+        )}
       </View>
     ),
-    [searchQuery]
+    [searchQuery, navigation]
   );
 
+  // 1. Estado de Carga Inicial (Loading State)
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
+        <View style={styles.centeredContainer}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+          <Text style={styles.loadingText}>Cargando catálogo de equipos...</Text>
+          <Text style={styles.loadingSubtext}>Conectando a la API en tiempo real</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // 2. Estado de Error (Error State)
+  if (isError) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
+        <View style={styles.centeredContainer}>
+          <Text style={styles.errorIcon}>⚠️</Text>
+          <Text style={styles.errorTitle}>Error al cargar los equipos</Text>
+          <Text style={styles.errorSubtitle}>
+            {error?.message ?? 'No pudimos establecer comunicación con el servidor de la API.'}
+          </Text>
+          <TouchableOpacity style={styles.retryButton} onPress={() => refetch()}>
+            <Text style={styles.retryButtonText}>🔄 Reintentar conexión</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // 3. Renderizado Principal (Lista de Equipos con Pull-to-Refresh)
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
@@ -112,7 +153,6 @@ export function HomeScreen(): React.JSX.Element {
       <KeyboardAvoidingView
         style={styles.keyboardAvoidingView}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
       >
         <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
           <View style={styles.mainContainer}>
@@ -124,13 +164,15 @@ export function HomeScreen(): React.JSX.Element {
                 <Text style={styles.headerSubtitle}>{DOMAIN_SUBTITLE}</Text>
               </View>
 
-              <View style={styles.statsBadge}>
-                <Text style={styles.statsCount}>{filteredItems.length}</Text>
-                <Text style={styles.statsLabel}>Equipos</Text>
-              </View>
+              <TouchableOpacity
+                style={styles.addButton}
+                onPress={() => navigation.navigate('CreateEquipment')}
+              >
+                <Text style={styles.addButtonText}>➕ Crear</Text>
+              </TouchableOpacity>
             </View>
 
-            {/* Barra de Búsqueda con TextInput */}
+            {/* Barra de Búsqueda */}
             <View style={styles.searchContainer}>
               <View style={styles.searchInputWrapper}>
                 <Text style={styles.searchIcon}>🔎</Text>
@@ -140,11 +182,9 @@ export function HomeScreen(): React.JSX.Element {
                   onChangeText={setSearchQuery}
                   placeholder="Buscar por nombre, categoría..."
                   placeholderTextColor={COLORS.inputPlaceholder}
-                  keyboardType="default"
                   returnKeyType="search"
                   autoCorrect={false}
                   autoCapitalize="none"
-                  clearButtonMode="while-editing"
                 />
                 {searchQuery.length > 0 && (
                   <Pressable onPress={() => setSearchQuery('')} style={styles.clearIconContainer}>
@@ -154,7 +194,7 @@ export function HomeScreen(): React.JSX.Element {
               </View>
             </View>
 
-            {/* Lista Virtualizada con FlatList */}
+            {/* Lista con FlatList, Pull-to-Refresh y ListEmptyComponent */}
             <FlatList
               data={filteredItems}
               keyExtractor={keyExtractor}
@@ -164,6 +204,8 @@ export function HomeScreen(): React.JSX.Element {
               contentContainerStyle={styles.listContent}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
+              onRefresh={refetch}
+              refreshing={isFetching}
             />
           </View>
         </TouchableWithoutFeedback>
@@ -183,6 +225,51 @@ const styles = StyleSheet.create({
   mainContainer: {
     flex: 1,
   },
+  centeredContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: SPACING.xl,
+    backgroundColor: COLORS.background,
+  },
+  loadingText: {
+    marginTop: SPACING.md,
+    fontSize: TYPOGRAPHY.fontSizeLG,
+    fontWeight: TYPOGRAPHY.fontWeightBold,
+    color: COLORS.textPrimary,
+  },
+  loadingSubtext: {
+    marginTop: SPACING.xs,
+    fontSize: TYPOGRAPHY.fontSizeSM,
+    color: COLORS.textSecondary,
+  },
+  errorIcon: {
+    fontSize: 54,
+    marginBottom: SPACING.md,
+  },
+  errorTitle: {
+    fontSize: TYPOGRAPHY.fontSizeXL,
+    fontWeight: TYPOGRAPHY.fontWeightBold,
+    color: COLORS.error,
+    marginBottom: SPACING.xs,
+  },
+  errorSubtitle: {
+    fontSize: TYPOGRAPHY.fontSizeMD,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+    marginBottom: SPACING.xl,
+  },
+  retryButton: {
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: SPACING.xl,
+    paddingVertical: SPACING.md,
+    borderRadius: 10,
+  },
+  retryButtonText: {
+    color: COLORS.textInverse,
+    fontWeight: TYPOGRAPHY.fontWeightBold,
+    fontSize: TYPOGRAPHY.fontSizeMD,
+  },
 
   // Header
   header: {
@@ -190,7 +277,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: SPACING.xl,
-    paddingVertical: SPACING.xl,
+    paddingVertical: SPACING.lg,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.surfaceAlt,
     backgroundColor: COLORS.surface,
@@ -204,36 +291,28 @@ const styles = StyleSheet.create({
     fontWeight: TYPOGRAPHY.fontWeightExtraBold,
     color: COLORS.primary,
     letterSpacing: 1.2,
-    marginBottom: SPACING.xs - 2,
+    marginBottom: 2,
   },
   headerTitle: {
-    fontSize: TYPOGRAPHY.fontSizeXXL,
+    fontSize: TYPOGRAPHY.fontSizeXXL - 2,
     fontWeight: TYPOGRAPHY.fontWeightBold,
     color: COLORS.textPrimary,
   },
   headerSubtitle: {
-    fontSize: TYPOGRAPHY.fontSizeSM + 1,
+    fontSize: TYPOGRAPHY.fontSizeSM,
     color: COLORS.textSecondary,
-    marginTop: SPACING.xs,
+    marginTop: 2,
   },
-  statsBadge: {
-    backgroundColor: COLORS.background,
+  addButton: {
+    backgroundColor: COLORS.primary,
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm,
-    borderRadius: 12,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    borderRadius: 8,
   },
-  statsCount: {
-    fontSize: TYPOGRAPHY.fontSizeXL - 2,
+  addButtonText: {
+    color: COLORS.textInverse,
+    fontSize: TYPOGRAPHY.fontSizeSM,
     fontWeight: TYPOGRAPHY.fontWeightBold,
-    color: COLORS.primary,
-  },
-  statsLabel: {
-    fontSize: TYPOGRAPHY.fontSizeXS,
-    color: COLORS.textSecondary,
-    textTransform: 'uppercase',
   },
 
   // Búsqueda
@@ -272,7 +351,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
 
-  // Lista y Separador
+  // Lista
   listContent: {
     padding: SPACING.lg,
     paddingBottom: SPACING.xxxl,
@@ -308,7 +387,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     marginBottom: SPACING.xl,
   },
-  clearSearchButton: {
+  actionButton: {
     backgroundColor: COLORS.primaryDim,
     paddingHorizontal: SPACING.xl,
     paddingVertical: SPACING.md,
@@ -316,7 +395,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.primary,
   },
-  clearSearchText: {
+  actionButtonText: {
     color: COLORS.primary,
     fontWeight: TYPOGRAPHY.fontWeightBold,
     fontSize: TYPOGRAPHY.fontSizeMD,

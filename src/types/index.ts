@@ -1,16 +1,16 @@
 // ============================================================
 // TYPES — src/types/index.ts
 // ============================================================
-// Define la interfaz del elemento del dominio asignado: DJ / Sonido e Iluminación.
+// Definición de tipos e interfaces estricta para el dominio DJ / Sonido y Luces (Beat & Light Pro).
 // ============================================================
 
 export type EquipmentCategory = 'DJ Gear' | 'Sonido' | 'Iluminación' | 'Efectos FX';
 export type EquipmentAvailability = 'Disponible' | 'En Alquiler';
 
 /**
- * Interfaz que representa un equipo o servicio del dominio DJ / Sonido e Iluminación.
+ * Modelo completo del Equipo en el sistema Beat & Light Pro.
  */
-export interface Item {
+export interface Equipment {
   id: string;
   name: string;
   category: EquipmentCategory;
@@ -18,6 +18,19 @@ export interface Item {
   pricePerDay: number;
   availability: EquipmentAvailability;
   imageUri: string;
-  rating?: number;
+  rating: number;
+  brand?: string;
+  model?: string;
+  description?: string;
+  specifications?: string[];
 }
 
+/**
+ * Alias de compatibilidad Item
+ */
+export type Item = Equipment;
+
+/**
+ * Payload requerido para la creación de un nuevo equipo mediante POST.
+ */
+export type CreateEquipmentPayload = Omit<Equipment, 'id'>;

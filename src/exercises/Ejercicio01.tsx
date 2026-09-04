@@ -1,156 +1,106 @@
 // ============================================================
-// DESEMPEÑO: Ejercicio 01 — Store Básico y Selectores (Zustand)
+// DESEMPEÑO: Ejercicio 01 — useQuery Básico (Semana 05 - Networking & TanStack Query v5)
 // ============================================================
-// PASO 1: Store definido con create<TodoStore>(), estado y acciones tipadas
-// PASO 2: Selector específico en cada componente
-// PASO 3: Acciones addTodo / removeTodo funcionan correctamente con set
-// PASO 4: Segundo componente consume el mismo store sin prop drilling
+// Criterios de Evaluación (20 pts):
+// 1. QueryClientProvider configurado en la raíz de la app (4 pts)
+// 2. useQuery con queryKey correcto ['posts'] y queryFn que llama a Axios (6 pts)
+// 3. Muestra ActivityIndicator mientras isLoading === true (4 pts)
+// 4. Muestra mensaje de error cuando isError === true (3 pts)
+// 5. Renderiza FlatList con los datos cuando la query tiene éxito (3 pts)
 // ============================================================
 
-import React, { useState } from 'react';
-import { View, Text, TextInput, Pressable, StyleSheet } from 'react-native';
-import { create } from 'zustand';
+import React from 'react';
+import { View, Text, FlatList, ActivityIndicator, StyleSheet } from 'react-native';
+import { useQuery } from '@tanstack/react-query';
+import { apiClient } from '../services/api';
 
-// 1. Interfaz del Store (Estado + Acciones)
-export interface TodoItem {
-  id: string;
-  text: string;
+export interface Post {
+  id: number;
+  title: string;
+  body: string;
 }
 
-export interface TodoStore {
-  count: number;
-  todos: TodoItem[];
-  addTodo: (text: string) => void;
-  removeTodo: (id: string) => void;
-  incrementCount: () => void;
-}
+export function Ejercicio01Component(): React.JSX.Element {
+  // 2. useQuery con queryKey en array y queryFn que llama a Axios mediante apiClient
+  const { data, isLoading, isError, error } = useQuery<Post[], Error>({
+    queryKey: ['posts'],
+    queryFn: async () => {
+      const response = await apiClient.get<Post[]>('/posts?_limit=10');
+      return response.data;
+    },
+  });
 
-// 2. Creación del store con create<TodoStore>()
-export const useTodoStore = create<TodoStore>((set) => ({
-  count: 0,
-  todos: [],
+  // 3. Muestra ActivityIndicator mientras isLoading === true
+  if (isLoading) {
+    return (
+      <View style={styles.centerContainer}>
+        <ActivityIndicator size="large" color="#38bdf8" />
+        <Text style={styles.loadingText}>Cargando publicaciones...</Text>
+      </View>
+    );
+  }
 
-  addTodo: (text: string) =>
-    set((state) => ({
-      todos: [...state.todos, { id: Date.now().toString(), text }],
-      count: state.count + 1,
-    })),
+  // 4. Muestra mensaje de error cuando isError === true
+  if (isError) {
+    return (
+      <View style={styles.centerContainer}>
+        <Text style={styles.errorText}>⚠️ Error: {error.message}</Text>
+      </View>
+    );
+  }
 
-  removeTodo: (id: string) =>
-    set((state) => ({
-      todos: state.todos.filter((todo) => todo.id !== id),
-    })),
-
-  incrementCount: () =>
-    set((state) => ({
-      count: state.count + 1,
-    })),
-}));
-
-// Componente 1: Agrega tareas y consume solo las acciones y el estado de lista
-export function TodoInputComponent(): React.JSX.Element {
-  const [text, setText] = useState('');
-  
-  // PASO 2: Selector específico para la acción addTodo
-  const addTodo = useTodoStore((state) => state.addTodo);
-
-  const handleAdd = () => {
-    if (text.trim()) {
-      addTodo(text.trim());
-      setText('');
-    }
-  };
-
+  // 5. Renderiza FlatList con los datos cuando la query tiene éxito
   return (
-    <View style={styles.container}>
-      <TextInput
-        style={styles.input}
-        value={text}
-        onChangeText={setText}
-        placeholder="Escribe una nueva tarea..."
-        placeholderTextColor="#8b949e"
-      />
-      <Pressable style={styles.button} onPress={handleAdd}>
-        <Text style={styles.buttonText}>Agregar Tarea</Text>
-      </Pressable>
-    </View>
-  );
-}
-
-// Componente 2: Renderiza el conteo y la lista de tareas SIN recibir props (PASO 4: Sin prop drilling)
-export function TodoListComponent(): React.JSX.Element {
-  // PASO 2: Selectores específicos e independientes para evitar re-renders innecesarios
-  const count = useTodoStore((state) => state.count);
-  const todos = useTodoStore((state) => state.todos);
-  const removeTodo = useTodoStore((state) => state.removeTodo);
-
-  return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Total de Tareas Creadas: {count}</Text>
-      {todos.map((todo) => (
-        <View key={todo.id} style={styles.todoRow}>
-          <Text style={styles.todoText}>{todo.text}</Text>
-          <Pressable style={styles.deleteButton} onPress={() => removeTodo(todo.id)}>
-            <Text style={styles.deleteText}>Eliminar</Text>
-          </Pressable>
+    <FlatList
+      data={data ?? []}
+      keyExtractor={(item) => String(item.id)}
+      contentContainerStyle={styles.listContent}
+      renderItem={({ item }) => (
+        <View style={styles.card}>
+          <Text style={styles.title}>{item.title}</Text>
+          <Text style={styles.body}>{item.body}</Text>
         </View>
-      ))}
-    </View>
+      )}
+    />
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    padding: 16,
-    backgroundColor: '#161b22',
-    borderRadius: 12,
-    marginVertical: 8,
+  centerContainer: {
+    padding: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  input: {
-    backgroundColor: '#0d1117',
-    color: '#f0f6fc',
+  loadingText: {
+    color: '#8b949e',
+    marginTop: 8,
+    fontSize: 14,
+  },
+  errorText: {
+    color: '#f87171',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  listContent: {
     padding: 12,
-    borderRadius: 8,
+  },
+  card: {
+    backgroundColor: '#161b22',
+    padding: 14,
+    marginVertical: 6,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: '#30363d',
-    marginBottom: 8,
-  },
-  button: {
-    backgroundColor: '#238636',
-    padding: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  buttonText: {
-    color: '#ffffff',
-    fontWeight: 'bold',
   },
   title: {
-    color: '#58a6ff',
-    fontSize: 16,
+    color: '#38bdf8',
     fontWeight: 'bold',
-    marginBottom: 12,
+    fontSize: 15,
+    marginBottom: 4,
   },
-  todoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#21262d',
-  },
-  todoText: {
+  body: {
     color: '#c9d1d9',
-  },
-  deleteButton: {
-    backgroundColor: '#da3633',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  deleteText: {
-    color: '#ffffff',
-    fontSize: 12,
-    fontWeight: 'bold',
+    fontSize: 13,
+    lineHeight: 18,
   },
 });

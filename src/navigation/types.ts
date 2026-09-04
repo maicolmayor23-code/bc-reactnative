@@ -1,8 +1,8 @@
 // ============================================================
 // NAVIGATION TYPES — src/navigation/types.ts
 // ============================================================
-// Definición estricta de rutas y parámetros para React Navigation 7.
-// Dominio: DJ / Sonido e Iluminación.
+// Tipado estricto de rutas y parámetros para React Navigation 7.
+// Dominio: DJ / Sonido y Luces (Beat & Light Pro).
 // ============================================================
 
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -10,11 +10,12 @@ import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { CompositeScreenProps, NavigatorScreenParams } from '@react-navigation/native';
 
 /**
- * Parámetros del Stack Navigator (anidado en la pestaña Home).
+ * Parámetros del Stack Navigator principal (anidado en HomeTab).
  */
 export type HomeStackParamList = {
   HomeList: undefined;
   HomeDetail: { id: string; name: string };
+  CreateEquipment: undefined;
 };
 
 /**
@@ -26,19 +27,15 @@ export type RootTabParamList = {
 };
 
 /**
- * Props para la pantalla HomeList.
+ * Props para las pantallas del Stack Navigator.
  */
 export type HomeListScreenProps = CompositeScreenProps<
   NativeStackScreenProps<HomeStackParamList, 'HomeList'>,
   BottomTabScreenProps<RootTabParamList>
 >;
 
-/**
- * Props para la pantalla HomeDetail.
- */
 export type HomeDetailScreenProps = NativeStackScreenProps<HomeStackParamList, 'HomeDetail'>;
 
-/**
- * Props para la pantalla FavoritesTab.
- */
+export type CreateEquipmentScreenProps = NativeStackScreenProps<HomeStackParamList, 'CreateEquipment'>;
+
 export type FavoritesScreenProps = BottomTabScreenProps<RootTabParamList, 'FavoritesTab'>;

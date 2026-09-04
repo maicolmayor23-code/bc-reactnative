@@ -3,6 +3,7 @@
 // ============================================================
 // Configuración de React Navigation 7 con Tab Navigator + Stack Navigator anidado.
 // Dominio: DJ / Sonido e Iluminación (Beat & Light Pro).
+// Incluye pantallas: HomeList, HomeDetail, CreateEquipment y FavoritesTab.
 // ============================================================
 
 import React from 'react';
@@ -11,6 +12,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { HomeScreen } from '../screens/HomeScreen';
 import { DetailScreen } from '../screens/DetailScreen';
+import { CreateScreen } from '../screens/CreateScreen';
 import { FavoritesScreen } from '../screens/FavoritesScreen';
 import { HomeStackParamList, RootTabParamList } from './types';
 import { COLORS } from '../theme';
@@ -21,7 +23,8 @@ const Tab = createBottomTabNavigator<RootTabParamList>();
 
 /**
  * Stack Navigator anidado para la pestaña "Home".
- * Permite navegar desde la lista (HomeList) hacia la pantalla de detalle (HomeDetail).
+ * Permite navegar desde la lista (HomeList) hacia la pantalla de detalle (HomeDetail)
+ * y la pantalla de creación (CreateEquipment).
  */
 function HomeStackNavigator(): React.JSX.Element {
   return (
@@ -47,16 +50,24 @@ function HomeStackNavigator(): React.JSX.Element {
           headerBackTitle: 'Atrás',
         })}
       />
+      <Stack.Screen
+        name="CreateEquipment"
+        component={CreateScreen}
+        options={{
+          title: 'Registrar Nuevo Equipo',
+          headerBackTitle: 'Atrás',
+        }}
+      />
     </Stack.Navigator>
   );
 }
 
 /**
  * Tab Navigator Raíz con dos pestañas: Inicio y Favoritos.
- * Incluye un badge dinámico en la pestaña Favoritos sincronizado con Zustand.
+ * Badge dinámico en la pestaña Favoritos sincronizado con Zustand (UI State).
  */
 export function RootNavigator(): React.JSX.Element {
-  // Selector optimizado desde el store Zustand (sin prop drilling)
+  // Selector optimizado desde el store Zustand para UI state
   const savedCount = useSavedStore((state) => state.savedItems.length);
 
   return (
@@ -74,7 +85,7 @@ export function RootNavigator(): React.JSX.Element {
 
           return <Ionicons name={iconName} size={size} color={color} />;
         },
-        tabBarActiveTintColor: '#61DAFB', // Requisito explícito de la especificación
+        tabBarActiveTintColor: '#61DAFB',
         tabBarInactiveTintColor: COLORS.textSecondary,
         tabBarStyle: {
           backgroundColor: COLORS.surface,
