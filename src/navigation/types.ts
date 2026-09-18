@@ -16,6 +16,7 @@ export type HomeStackParamList = {
   HomeList: undefined;
   HomeDetail: { id: string; name: string };
   CreateEquipment: undefined;
+  EditEquipment: { id: string };
 };
 
 /**
@@ -37,5 +38,7 @@ export type HomeListScreenProps = CompositeScreenProps<
 export type HomeDetailScreenProps = NativeStackScreenProps<HomeStackParamList, 'HomeDetail'>;
 
 export type CreateEquipmentScreenProps = NativeStackScreenProps<HomeStackParamList, 'CreateEquipment'>;
+
+export type EditEquipmentScreenProps = NativeStackScreenProps<HomeStackParamList, 'EditEquipment'>;
 
 export type FavoritesScreenProps = BottomTabScreenProps<RootTabParamList, 'FavoritesTab'>;

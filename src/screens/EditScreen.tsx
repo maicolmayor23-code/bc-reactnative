@@ -1,11 +1,12 @@
 // ============================================================
-// SCREEN — src/screens/CreateScreen.tsx
+// SCREEN — src/screens/EditScreen.tsx
 // ============================================================
-// Formulario para crear un nuevo equipo usando React Hook Form + Zod + FormField reutilizable.
+// Formulario para editar un equipo existente usando React Hook Form + Zod.
+// Carga defaultValues con reset() dentro de useEffect cuando llegan los datos.
 // Dominio: DJ / Sonido y Luces (Beat & Light Pro).
 // ============================================================
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   Text,
@@ -19,16 +20,20 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { FormField } from '../components/FormField';
 import { equipmentSchema, type EquipmentFormData, CATEGORIES, AVAILABILITY_OPTIONS } from '../schemas/equipmentSchema';
-import { useCreateEquipment } from '../hooks/useCreateEquipment';
+import { useEquipmentById } from '../hooks/useEquipmentById';
+import { useUpdateEquipment } from '../hooks/useUpdateEquipment';
 import { COLORS, SPACING, TYPOGRAPHY } from '../theme';
-import { CreateEquipmentScreenProps } from '../navigation/types';
+import { EditEquipmentScreenProps } from '../navigation/types';
 
-export function CreateScreen({ navigation }: CreateEquipmentScreenProps): React.JSX.Element {
-  const { mutate: createMutate, isPending } = useCreateEquipment();
+export function EditScreen({ route, navigation }: EditEquipmentScreenProps): React.JSX.Element {
+  const { id } = route.params;
+  const { data: equipment, isLoading, isError } = useEquipmentById(id);
+  const { mutate: updateMutate, isPending } = useUpdateEquipment();
 
   const {
     control,
     handleSubmit,
+    reset,
     formState: { errors, isSubmitting },
   } = useForm({
     resolver: zodResolver(equipmentSchema),
@@ -38,40 +43,78 @@ export function CreateScreen({ navigation }: CreateEquipmentScreenProps): React.
       subtitle: '',
       pricePerDay: 75,
       availability: 'Disponible' as const,
-      imageUri: 'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?auto=format&fit=crop&w=600&q=80',
-      rating: 4.9,
+      imageUri: '',
+      rating: 4.8,
     },
   });
 
+  // Cargar los datos del equipo en el formulario cuando la query finalice
+  useEffect(() => {
+    if (equipment) {
+      reset({
+        name: equipment.name,
+        category: equipment.category,
+        subtitle: equipment.subtitle,
+        pricePerDay: equipment.pricePerDay,
+        availability: equipment.availability,
+        imageUri: equipment.imageUri ?? '',
+        rating: equipment.rating,
+      });
+    }
+  }, [equipment, reset]);
+
   const onSubmit = (data: EquipmentFormData): void => {
-    createMutate(
+    updateMutate(
       {
-        name: data.name.trim(),
-        category: data.category,
-        subtitle: data.subtitle.trim(),
-        pricePerDay: Number(data.pricePerDay),
-        availability: data.availability,
-        imageUri: data.imageUri?.trim() || 'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?auto=format&fit=crop&w=600&q=80',
-        rating: Number(data.rating),
+        id,
+        data: {
+          name: data.name.trim(),
+          category: data.category,
+          subtitle: data.subtitle.trim(),
+          pricePerDay: Number(data.pricePerDay),
+          availability: data.availability,
+          imageUri: data.imageUri?.trim() || 'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?auto=format&fit=crop&w=600&q=80',
+          rating: Number(data.rating),
+        },
       },
       {
         onSuccess: () => {
-          Alert.alert('Éxito', 'El equipo fue creado y registrado correctamente');
+          Alert.alert('Éxito', 'El equipo se actualizó correctamente');
           navigation.goBack();
         },
         onError: (err: Error) => {
-          Alert.alert('Error', `No se pudo registrar el equipo: ${err.message}`);
+          Alert.alert('Error', `No se pudo actualizar el equipo: ${err.message}`);
         },
       }
     );
   };
 
+  if (isLoading) {
+    return (
+      <View style={styles.centerContainer}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+        <Text style={styles.loadingText}>Cargando datos del equipo...</Text>
+      </View>
+    );
+  }
+
+  if (isError || !equipment) {
+    return (
+      <View style={styles.centerContainer}>
+        <Text style={styles.errorText}>No se pudo cargar la información del equipo.</Text>
+        <TouchableOpacity style={styles.retryButton} onPress={() => navigation.goBack()}>
+          <Text style={styles.retryButtonText}>Volver</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   const isLoadingOrSubmitting = isPending || isSubmitting;
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.headerTitle}>Registrar Nuevo Equipo</Text>
-      <Text style={styles.headerSubtitle}>Beat & Light Pro — Gestión de Inventario</Text>
+      <Text style={styles.headerTitle}>Editar Equipo</Text>
+      <Text style={styles.headerSubtitle}>Modificar especificaciones de {equipment.name}</Text>
 
       {/* Nombre */}
       <FormField
@@ -176,7 +219,7 @@ export function CreateScreen({ navigation }: CreateEquipmentScreenProps): React.
         error={errors.imageUri?.message}
       />
 
-      {/* Botón de Enviar */}
+      {/* Botón de Guardar Cambios */}
       <TouchableOpacity
         style={[styles.submitButton, isLoadingOrSubmitting && styles.submitButtonDisabled]}
         onPress={handleSubmit(onSubmit)}
@@ -185,10 +228,10 @@ export function CreateScreen({ navigation }: CreateEquipmentScreenProps): React.
         {isLoadingOrSubmitting ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator color={COLORS.textInverse} size="small" />
-            <Text style={styles.submitButtonText}> Guardando Equipo...</Text>
+            <Text style={styles.submitButtonText}> Guardando Cambios...</Text>
           </View>
         ) : (
-          <Text style={styles.submitButtonText}>💾 Registrar Equipo en el Servidor</Text>
+          <Text style={styles.submitButtonText}>💾 Actualizar Equipo</Text>
         )}
       </TouchableOpacity>
     </ScrollView>
@@ -203,6 +246,18 @@ const styles = StyleSheet.create({
   content: {
     padding: SPACING.md,
     paddingBottom: SPACING.xl * 2,
+  },
+  centerContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: COLORS.background,
+    padding: SPACING.xl,
+  },
+  loadingText: {
+    color: COLORS.textSecondary,
+    fontSize: TYPOGRAPHY.fontSizeMD,
+    marginTop: SPACING.md,
   },
   headerTitle: {
     fontSize: TYPOGRAPHY.fontSizeXL,
@@ -279,5 +334,23 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.fontSizeXS,
     marginTop: 4,
     fontWeight: TYPOGRAPHY.fontWeightMedium,
+  },
+  errorText: {
+    color: COLORS.error,
+    fontSize: TYPOGRAPHY.fontSizeMD,
+    textAlign: 'center',
+    marginBottom: SPACING.md,
+  },
+  retryButton: {
+    backgroundColor: COLORS.surface,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.sm,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  retryButtonText: {
+    color: COLORS.textPrimary,
+    fontWeight: TYPOGRAPHY.fontWeightBold,
   },
 });

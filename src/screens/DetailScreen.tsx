@@ -4,6 +4,7 @@
 // Pantalla de Detalle de Equipo (DJ / Sonido e Iluminación).
 // Consume el Server State mediante useEquipmentById(id) con TanStack Query v5.
 // Mantiene Zustand exclusivamente para el UI State (Guardar/Favorito local).
+// Incluye botón para abrir el formulario de Edición (EditScreen).
 // ============================================================
 
 import React from 'react';
@@ -32,13 +33,10 @@ export function DetailScreen(): React.JSX.Element {
   const route = useRoute<DetailRouteProp>();
   const navigation = useNavigation<DetailNavigationProp>();
 
-  // Extracción de parámetros enviados desde el Stack Navigator
   const { id, name } = route.params;
 
-  // Consulta del Server State a través de custom hook con TanStack Query
   const { data: item, isLoading, isError, error } = useEquipmentById(id);
 
-  // Selector de Zustand exclusivamente para UI State (Favoritos locales)
   const isSaved = useSavedStore((state) => state.savedItems.some((equip) => equip.id === id));
   const toggleSaveItem = useSavedStore((state) => state.toggleSaveItem);
 
@@ -151,6 +149,17 @@ export function DetailScreen(): React.JSX.Element {
               <Text style={styles.bulletItem}>✓ Limpieza y sanitización de componentes</Text>
             </View>
           </View>
+
+          {/* Botón para navegar a Editar Equipo (EditScreen) */}
+          <Pressable
+            style={({ pressed }) => [
+              styles.editButton,
+              pressed && styles.reserveButtonPressed,
+            ]}
+            onPress={() => navigation.navigate('EditEquipment', { id: item.id })}
+          >
+            <Text style={styles.editButtonText}>✏️ Editar Especificaciones del Equipo</Text>
+          </Pressable>
 
           {/* Botón interactivo del Store Zustand (UI State): Guardar / Quitar */}
           <Pressable
@@ -397,6 +406,20 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.fontSizeMD,
     color: COLORS.textSecondary,
     lineHeight: 20,
+  },
+  editButton: {
+    backgroundColor: COLORS.surfaceAlt,
+    paddingVertical: SPACING.md,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginBottom: SPACING.md,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  editButtonText: {
+    color: COLORS.textPrimary,
+    fontSize: TYPOGRAPHY.fontSizeMD,
+    fontWeight: TYPOGRAPHY.fontWeightBold,
   },
   saveButton: {
     paddingVertical: SPACING.md,

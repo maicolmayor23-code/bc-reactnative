@@ -6,10 +6,10 @@
 // ============================================================
 
 import { apiClient } from './api';
-import { Equipment, CreateEquipmentPayload } from '../types';
+import { Equipment, CreateEquipmentPayload, UpdateEquipmentPayload } from '../types';
 import { MOCK_ITEMS } from '../data/mockData';
 
-// Almacén en memoria local para sincronizar elementos creados vía POST cuando se utiliza un proxy/JSONPlaceholder
+// Almacén en memoria local para sincronizar elementos creados/editados vía HTTP cuando se utiliza un proxy/JSONPlaceholder
 let localEquipmentsStore: Equipment[] = [...MOCK_ITEMS];
 
 /**
@@ -17,15 +17,12 @@ let localEquipmentsStore: Equipment[] = [...MOCK_ITEMS];
  */
 export async function fetchEquipments(): Promise<Equipment[]> {
   try {
-    // Si la URL apunta a /equipments o un endpoint personalizado:
     const response = await apiClient.get<Equipment[]>('/equipments');
     if (Array.isArray(response.data) && response.data.length > 0) {
       return response.data;
     }
   } catch {
-    // Si el endpoint /equipments no existe en la API pública de prueba (ej. JSONPlaceholder),
-    // realizamos la llamada HTTP real a /posts para verificar la conexión de red y retornamos los datos del dominio
-    await apiClient.get('/posts?_limit=10');
+    await apiClient.get('/posts?_limit=10').catch(() => null);
   }
   return [...localEquipmentsStore];
 }
@@ -40,11 +37,10 @@ export async function fetchEquipmentById(id: string): Promise<Equipment> {
   } catch {
     await apiClient.get(`/posts/${id}`).catch(() => null);
   }
-  
+
   const found = localEquipmentsStore.find((item) => item.id === id);
   if (found) return found;
 
-  // Fallback si es un ítem creado dinámicamente
   return {
     id,
     name: `Equipo #${id}`,
@@ -74,20 +70,44 @@ export async function createEquipment(payload: CreateEquipmentPayload): Promise<
       };
     }
   } catch {
-    // Llamada HTTP POST real a /posts para verificar comunicación de red
     const postResponse = await apiClient.post('/posts', {
       title: payload.name,
       body: payload.subtitle,
       userId: 1,
     });
-    
+
     createdItem = {
       ...payload,
       id: String(postResponse.data?.id ?? Date.now()),
     };
   }
 
-  // Insertar al inicio del almacén local para reflejar la mutación al invalidar caché
   localEquipmentsStore = [createdItem, ...localEquipmentsStore];
   return createdItem;
+}
+
+/**
+ * Actualiza un equipo existente mediante una solicitud HTTP PUT/PATCH.
+ */
+export async function updateEquipment(id: string, payload: UpdateEquipmentPayload): Promise<Equipment> {
+  let updatedItem: Equipment;
+
+  try {
+    const response = await apiClient.put<Equipment>(`/equipments/${id}`, payload);
+    if (response.data) {
+      updatedItem = response.data;
+    } else {
+      const existing = await fetchEquipmentById(id);
+      updatedItem = { ...existing, ...payload, id };
+    }
+  } catch {
+    await apiClient.put(`/posts/${id}`, { title: payload.name }).catch(() => null);
+    const existing = await fetchEquipmentById(id);
+    updatedItem = { ...existing, ...payload, id };
+  }
+
+  localEquipmentsStore = localEquipmentsStore.map((item) =>
+    item.id === id ? updatedItem : item
+  );
+  return updatedItem;
 }

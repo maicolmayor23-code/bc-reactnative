@@ -3,7 +3,7 @@
 // ============================================================
 // Configuración de React Navigation 7 con Tab Navigator + Stack Navigator anidado.
 // Dominio: DJ / Sonido e Iluminación (Beat & Light Pro).
-// Incluye pantallas: HomeList, HomeDetail, CreateEquipment y FavoritesTab.
+// Incluye pantallas: HomeList, HomeDetail, CreateEquipment, EditEquipment y FavoritesTab.
 // ============================================================
 
 import React from 'react';
@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { HomeScreen } from '../screens/HomeScreen';
 import { DetailScreen } from '../screens/DetailScreen';
 import { CreateScreen } from '../screens/CreateScreen';
+import { EditScreen } from '../screens/EditScreen';
 import { FavoritesScreen } from '../screens/FavoritesScreen';
 import { HomeStackParamList, RootTabParamList } from './types';
 import { COLORS } from '../theme';
@@ -23,8 +24,8 @@ const Tab = createBottomTabNavigator<RootTabParamList>();
 
 /**
  * Stack Navigator anidado para la pestaña "Home".
- * Permite navegar desde la lista (HomeList) hacia la pantalla de detalle (HomeDetail)
- * y la pantalla de creación (CreateEquipment).
+ * Permite navegar desde la lista (HomeList) hacia la pantalla de detalle (HomeDetail),
+ * la pantalla de creación (CreateEquipment) y la pantalla de edición (EditEquipment).
  */
 function HomeStackNavigator(): React.JSX.Element {
   return (
@@ -58,6 +59,14 @@ function HomeStackNavigator(): React.JSX.Element {
           headerBackTitle: 'Atrás',
         }}
       />
+      <Stack.Screen
+        name="EditEquipment"
+        component={EditScreen}
+        options={{
+          title: 'Editar Equipo',
+          headerBackTitle: 'Atrás',
+        }}
+      />
     </Stack.Navigator>
   );
 }
@@ -67,7 +76,6 @@ function HomeStackNavigator(): React.JSX.Element {
  * Badge dinámico en la pestaña Favoritos sincronizado con Zustand (UI State).
  */
 export function RootNavigator(): React.JSX.Element {
-  // Selector optimizado desde el store Zustand para UI state
   const savedCount = useSavedStore((state) => state.savedItems.length);
 
   return (
