@@ -33,7 +33,7 @@ export function ItemCard({ item, onPress }: ItemCardProps): React.JSX.Element {
       onPress={() => onPress(item)}
     >
       <Image
-        source={{ uri: item.imageUri }}
+        source={typeof item.imageUri === 'string' ? { uri: item.imageUri } : item.imageUri}
         style={styles.cardImage}
         resizeMode="cover"
       />
