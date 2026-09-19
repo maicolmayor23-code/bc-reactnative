@@ -4,10 +4,10 @@
 // Pantalla de Detalle de Equipo (DJ / Sonido e Iluminación).
 // Consume el Server State mediante useEquipmentById(id) con TanStack Query v5.
 // Mantiene Zustand exclusivamente para el UI State (Guardar/Favorito local).
-// Incluye botón para abrir el formulario de Edición (EditScreen).
+// Incluye botón para abrir el formulario de Edición (EditScreen) y visor de imagen a pantalla completa.
 // ============================================================
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -18,6 +18,7 @@ import {
   SafeAreaView,
   StatusBar,
   ActivityIndicator,
+  Modal,
 } from 'react-native';
 import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -34,6 +35,8 @@ export function DetailScreen(): React.JSX.Element {
   const navigation = useNavigation<DetailNavigationProp>();
 
   const { id, name } = route.params;
+
+  const [isModalVisible, setIsModalVisible] = useState<boolean>(false);
 
   const { data: item, isLoading, isError, error } = useEquipmentById(id);
 
@@ -71,18 +74,22 @@ export function DetailScreen(): React.JSX.Element {
   }
 
   const isAvailable = item.availability === 'Disponible';
+  const imageSource = typeof item.imageUri === 'string' ? { uri: item.imageUri } : item.imageUri;
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Imagen del Equipo */}
-        <View style={styles.imageContainer}>
-          <Image source={typeof item.imageUri === 'string' ? { uri: item.imageUri } : item.imageUri} style={styles.image} resizeMode="cover" />
+        {/* Imagen del Equipo (Tocar para pantalla completa) */}
+        <Pressable style={styles.imageContainer} onPress={() => setIsModalVisible(true)}>
+          <Image source={imageSource} style={styles.image} resizeMode="contain" />
           <View style={styles.imageOverlayBadge}>
             <Text style={styles.imageBadgeText}>{item.category}</Text>
           </View>
-        </View>
+          <View style={styles.zoomHintBadge}>
+            <Text style={styles.zoomHintText}>🔍 Ampliar</Text>
+          </View>
+        </Pressable>
 
         {/* Ficha Principal */}
         <View style={styles.contentContainer}>
@@ -191,6 +198,17 @@ export function DetailScreen(): React.JSX.Element {
           </Pressable>
         </View>
       </ScrollView>
+
+      {/* Modal de Visor de Imagen a Pantalla Completa */}
+      <Modal visible={isModalVisible} transparent animationType="fade" onRequestClose={() => setIsModalVisible(false)}>
+        <View style={styles.modalOverlay}>
+          <Pressable style={styles.modalCloseButton} onPress={() => setIsModalVisible(false)}>
+            <Text style={styles.modalCloseText}>✕ Cerrar</Text>
+          </Pressable>
+          <Image source={imageSource} style={styles.fullScreenImage} resizeMode="contain" />
+          <Text style={styles.modalTitle}>{item.name}</Text>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -243,7 +261,7 @@ const styles = StyleSheet.create({
   },
   imageContainer: {
     width: '100%',
-    height: 240,
+    height: 260,
     position: 'relative',
     backgroundColor: COLORS.surface,
   },
@@ -266,6 +284,20 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     fontWeight: TYPOGRAPHY.fontWeightBold,
     fontSize: TYPOGRAPHY.fontSizeSM,
+  },
+  zoomHintBadge: {
+    position: 'absolute',
+    bottom: SPACING.md,
+    right: SPACING.md,
+    backgroundColor: 'rgba(13, 17, 23, 0.75)',
+    paddingHorizontal: SPACING.sm + 2,
+    paddingVertical: SPACING.xs,
+    borderRadius: 6,
+  },
+  zoomHintText: {
+    color: COLORS.textSecondary,
+    fontSize: TYPOGRAPHY.fontSizeXS,
+    fontWeight: TYPOGRAPHY.fontWeightMedium,
   },
   contentContainer: {
     padding: SPACING.xl,
@@ -461,5 +493,41 @@ const styles = StyleSheet.create({
     color: COLORS.textInverse,
     fontSize: TYPOGRAPHY.fontSizeLG,
     fontWeight: TYPOGRAPHY.fontWeightBold,
+  },
+
+  // Modal Fullscreen Image
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.92)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: SPACING.lg,
+  },
+  modalCloseButton: {
+    position: 'absolute',
+    top: 50,
+    right: SPACING.xl,
+    backgroundColor: COLORS.surface,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.sm,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    zIndex: 10,
+  },
+  modalCloseText: {
+    color: COLORS.textPrimary,
+    fontWeight: TYPOGRAPHY.fontWeightBold,
+    fontSize: TYPOGRAPHY.fontSizeMD,
+  },
+  fullScreenImage: {
+    width: '100%',
+    height: '75%',
+  },
+  modalTitle: {
+    color: COLORS.textPrimary,
+    fontSize: TYPOGRAPHY.fontSizeLG,
+    fontWeight: TYPOGRAPHY.fontWeightBold,
+    marginTop: SPACING.lg,
   },
 });
