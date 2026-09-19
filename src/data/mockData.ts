@@ -14,7 +14,7 @@ export const MOCK_ITEMS: Item[] = [
     subtitle: 'Controlador DJ de 4 canales con Jog Cutter y Merge FX',
     pricePerDay: 85,
     availability: 'Disponible',
-    imageUri: 'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?auto=format&fit=crop&w=600&q=80',
+    imageUri: require('../assets/Pioneer DDJ-FLX6.png'),
     rating: 4.9,
   },
   {

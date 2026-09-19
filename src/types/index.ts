@@ -19,7 +19,7 @@ export interface Equipment {
   subtitle: string;
   pricePerDay: number;
   availability: EquipmentAvailability;
-  imageUri: string;
+  imageUri: string | any;
   rating: number;
   brand?: string;
   model?: string;
