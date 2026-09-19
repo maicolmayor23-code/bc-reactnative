@@ -10,7 +10,15 @@ import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { CompositeScreenProps, NavigatorScreenParams } from '@react-navigation/native';
 
 /**
- * Parámetros del Stack Navigator principal (anidado en HomeTab).
+ * Parámetros del Auth Stack Navigator (público).
+ */
+export type AuthStackParamList = {
+  Login: undefined;
+  Register: undefined;
+};
+
+/**
+ * Parámetros del Home Stack Navigator (anidado en la pestaña Inicio).
  */
 export type HomeStackParamList = {
   HomeList: undefined;
@@ -20,26 +28,39 @@ export type HomeStackParamList = {
 };
 
 /**
- * Parámetros del Tab Navigator raíz.
+ * Parámetros del App Tab Navigator (protegido).
  */
-export type RootTabParamList = {
+export type AppTabParamList = {
   HomeTab: NavigatorScreenParams<HomeStackParamList>;
+  Ejercicio01Tab: undefined;
+  Ejercicio02Tab: undefined;
   FavoritesTab: undefined;
+  ProfileTab: undefined;
   SettingsTab: undefined;
 };
 
 /**
- * Props para las pantallas del Stack Navigator.
+ * Alias de compatibilidad RootTabParamList
+ */
+export type RootTabParamList = AppTabParamList;
+
+/**
+ * Props para las pantallas del Auth Stack.
+ */
+export type LoginScreenProps = NativeStackScreenProps<AuthStackParamList, 'Login'>;
+export type RegisterScreenProps = NativeStackScreenProps<AuthStackParamList, 'Register'>;
+
+/**
+ * Props para las pantallas del Home Stack.
  */
 export type HomeListScreenProps = CompositeScreenProps<
   NativeStackScreenProps<HomeStackParamList, 'HomeList'>,
-  BottomTabScreenProps<RootTabParamList>
+  BottomTabScreenProps<AppTabParamList>
 >;
 
 export type HomeDetailScreenProps = NativeStackScreenProps<HomeStackParamList, 'HomeDetail'>;
-
 export type CreateEquipmentScreenProps = NativeStackScreenProps<HomeStackParamList, 'CreateEquipment'>;
-
 export type EditEquipmentScreenProps = NativeStackScreenProps<HomeStackParamList, 'EditEquipment'>;
-
-export type FavoritesScreenProps = BottomTabScreenProps<RootTabParamList, 'FavoritesTab'>;
+export type FavoritesScreenProps = BottomTabScreenProps<AppTabParamList, 'FavoritesTab'>;
+export type ProfileScreenProps = BottomTabScreenProps<AppTabParamList, 'ProfileTab'>;
+export type SettingsScreenProps = BottomTabScreenProps<AppTabParamList, 'SettingsTab'>;

@@ -25,9 +25,12 @@ import {
   getOperatorToken,
   deleteOperatorToken,
 } from '../services/secureStoreService';
+import { useAuthStore } from '../stores/authStore';
 import { COLORS, TYPOGRAPHY, SPACING } from '../theme';
 
 export function SettingsScreen(): React.JSX.Element {
+  const user = useAuthStore((state) => state.user);
+  const logout = useAuthStore((state) => state.logout);
   const {
     sortOrder,
     setSortOrder,
@@ -251,6 +254,26 @@ export function SettingsScreen(): React.JSX.Element {
           {statusMessage !== '' && (
             <Text style={styles.statusToast}>{statusMessage}</Text>
           )}
+        </View>
+
+        {/* ============================================================ */}
+        {/* SECCIÓN 3: GESTIÓN DE SESIÓN DE OPERADOR */}
+        {/* ============================================================ */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Sesión Activa: {user?.username ?? 'Operador'}</Text>
+          <Text style={styles.cardSubtitle}>Email: {user?.email ?? 'N/A'}</Text>
+
+          <TouchableOpacity
+            style={[styles.deleteButton, { marginTop: 16 }]}
+            onPress={() => {
+              Alert.alert('Cerrar Sesión', '¿Deseas salir del sistema?', [
+                { text: 'Cancelar', style: 'cancel' },
+                { text: 'Salir', style: 'destructive', onPress: () => logout() },
+              ]);
+            }}
+          >
+            <Text style={styles.deleteButtonText}>🚪 Cerrar Sesión del Sistema</Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </SafeAreaView>

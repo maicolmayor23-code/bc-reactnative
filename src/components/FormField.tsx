@@ -1,103 +1,142 @@
 // ============================================================
 // COMPONENT — src/components/FormField.tsx
 // ============================================================
-// Componente genérico reutilizable que encapsula Controller + TextInput + Mensajes de Error.
-// Reutilizado en CreateScreen y EditScreen para cumplir con la rúbrica y los requisitos.
+// Componente reutilizable de campo de entrada con integración para
+// etiquetas, iconos, mensajes de error Zod e indicador de contraseña.
+// Soporta tanto uso directo con props de TextInput como integración con Controller (control & name).
 // ============================================================
 
-import React from 'react';
-import { View, Text, TextInput, StyleSheet, TextInputProps } from 'react-native';
-import { Controller, FieldPath, FieldValues } from 'react-hook-form';
-import { COLORS, SPACING, TYPOGRAPHY } from '../theme';
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TextInputProps,
+  TouchableOpacity,
+  StyleSheet,
+  ViewStyle,
+} from 'react-native';
+import { Controller } from 'react-hook-form';
+import { Ionicons } from '@expo/vector-icons';
+import { COLORS } from '../theme';
 
-export interface FormFieldProps<TFieldValues extends FieldValues = any>
-  extends Omit<TextInputProps, 'value' | 'onChangeText'> {
-  control: any;
-  name: FieldPath<TFieldValues>;
+export interface FormFieldProps extends TextInputProps {
   label: string;
   error?: string;
-  containerStyle?: object;
+  iconName?: keyof typeof Ionicons.glyphMap;
+  isPassword?: boolean;
+  control?: any;
+  name?: string;
+  containerStyle?: ViewStyle;
 }
 
-export function FormField<TFieldValues extends FieldValues = any>({
-  control,
-  name,
+export function FormField({
   label,
   error,
+  iconName,
+  isPassword = false,
+  control,
+  name,
   containerStyle,
   style,
-  multiline,
-  numberOfLines,
-  keyboardType = 'default',
-  placeholder,
-  ...textInputProps
-}: FormFieldProps<TFieldValues>): React.JSX.Element {
-  return (
+  ...props
+}: FormFieldProps): React.JSX.Element {
+  const [showPassword, setShowPassword] = useState(false);
+
+  const renderInput = (onChange?: (text: string) => void, onBlur?: () => void, value?: string) => (
     <View style={[styles.container, containerStyle]}>
       <Text style={styles.label}>{label}</Text>
+      <View style={[styles.inputContainer, error ? styles.inputError : null]}>
+        {iconName && (
+          <Ionicons
+            name={iconName}
+            size={20}
+            color={COLORS.textSecondary}
+            style={styles.icon}
+          />
+        )}
+        <TextInput
+          style={[styles.input, style]}
+          placeholderTextColor={COLORS.textSecondary}
+          secureTextEntry={isPassword && !showPassword}
+          autoCapitalize="none"
+          onChangeText={onChange ?? props.onChangeText}
+          onBlur={onBlur ?? props.onBlur}
+          value={value ?? props.value}
+          {...props}
+        />
+        {isPassword && (
+          <TouchableOpacity
+            onPress={() => setShowPassword((prev) => !prev)}
+            style={styles.eyeButton}
+            activeOpacity={0.7}
+          >
+            <Ionicons
+              name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+              size={20}
+              color={COLORS.textSecondary}
+            />
+          </TouchableOpacity>
+        )}
+      </View>
+      {error ? <Text style={styles.errorText}>{error}</Text> : null}
+    </View>
+  );
+
+  if (control && name) {
+    return (
       <Controller
         control={control}
         name={name}
-        render={({ field: { onChange, onBlur, value } }) => (
-          <TextInput
-            style={[
-              styles.input,
-              multiline && styles.textArea,
-              !!error && styles.inputError,
-              style,
-            ]}
-            placeholder={placeholder}
-            placeholderTextColor={COLORS.inputPlaceholder}
-            value={value !== undefined && value !== null ? String(value) : ''}
-            onChangeText={onChange}
-            onBlur={onBlur}
-            keyboardType={keyboardType}
-            multiline={multiline}
-            numberOfLines={numberOfLines}
-            {...textInputProps}
-          />
-        )}
+        render={({ field: { onChange, onBlur, value } }) =>
+          renderInput(onChange, onBlur, value != null ? String(value) : '')
+        }
       />
-      {!!error && <Text style={styles.errorText}>⚠️ {error}</Text>}
-    </View>
-  );
+    );
+  }
+
+  return renderInput();
 }
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: SPACING.md,
+    marginBottom: 16,
+    width: '100%',
   },
   label: {
-    fontSize: TYPOGRAPHY.fontSizeXS,
-    color: COLORS.textSecondary,
-    fontWeight: TYPOGRAPHY.fontWeightMedium,
-    marginBottom: 6,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  input: {
-    backgroundColor: COLORS.surface,
-    borderColor: COLORS.border,
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
+    fontSize: 14,
+    fontWeight: '600',
     color: COLORS.textPrimary,
-    fontSize: TYPOGRAPHY.fontSizeMD,
+    marginBottom: 6,
   },
-  textArea: {
-    minHeight: 80,
-    textAlignVertical: 'top',
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.surface,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    paddingHorizontal: 12,
+    height: 48,
   },
   inputError: {
     borderColor: COLORS.error,
-    borderWidth: 1.5,
-    backgroundColor: 'rgba(248, 113, 113, 0.05)',
+  },
+  icon: {
+    marginRight: 8,
+  },
+  input: {
+    flex: 1,
+    color: COLORS.textPrimary,
+    fontSize: 15,
+  },
+  eyeButton: {
+    padding: 4,
   },
   errorText: {
     color: COLORS.error,
-    fontSize: TYPOGRAPHY.fontSizeXS,
+    fontSize: 12,
     marginTop: 4,
-    fontWeight: TYPOGRAPHY.fontWeightMedium,
+    fontWeight: '500',
   },
 });

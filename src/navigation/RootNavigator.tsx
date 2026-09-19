@@ -1,141 +1,67 @@
 // ============================================================
-// NAVIGATION: RootNavigator
+// NAVIGATION: RootNavigator — src/navigation/RootNavigator.tsx
 // ============================================================
-// Configuración de React Navigation 7 con Tab Navigator + Stack Navigator anidado.
-// Dominio: DJ / Sonido e Iluminación (Beat & Light Pro).
-// Incluye pantallas: HomeList, HomeDetail, CreateEquipment, EditEquipment y FavoritesTab.
+// Navegador Raíz que efectúa la conmutación reactiva y condicional entre
+// AuthNavigator (Login/Registro) y AppNavigator (Área Protegida) basándose
+// en el estado de autenticación (isAuthenticated) e rehidratación inicial (isLoading).
+// Previene parpadeos visuales al abrir la aplicación.
 // ============================================================
 
-import React from 'react';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import React, { useEffect } from 'react';
+import { View, ActivityIndicator, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { HomeScreen } from '../screens/HomeScreen';
-import { DetailScreen } from '../screens/DetailScreen';
-import { CreateScreen } from '../screens/CreateScreen';
-import { EditScreen } from '../screens/EditScreen';
-import { FavoritesScreen } from '../screens/FavoritesScreen';
-import { SettingsScreen } from '../screens/SettingsScreen';
-import { HomeStackParamList, RootTabParamList } from './types';
+import { useAuthStore } from '../stores/authStore';
+import { AuthNavigator } from './AuthNavigator';
+import { AppNavigator } from './AppNavigator';
 import { COLORS } from '../theme';
-import { useSavedStore } from '../stores/savedStore';
 
-const Stack = createNativeStackNavigator<HomeStackParamList>();
-const Tab = createBottomTabNavigator<RootTabParamList>();
-
-/**
- * Stack Navigator anidado para la pestaña "Home".
- * Permite navegar desde la lista (HomeList) hacia la pantalla de detalle (HomeDetail),
- * la pantalla de creación (CreateEquipment) y la pantalla de edición (EditEquipment).
- */
-function HomeStackNavigator(): React.JSX.Element {
-  return (
-    <Stack.Navigator
-      initialRouteName="HomeList"
-      screenOptions={{
-        headerStyle: { backgroundColor: COLORS.surface },
-        headerTintColor: COLORS.textPrimary,
-        headerTitleStyle: { fontWeight: '600' },
-        contentStyle: { backgroundColor: COLORS.background },
-      }}
-    >
-      <Stack.Screen
-        name="HomeList"
-        component={HomeScreen}
-        options={{ headerShown: false }}
-      />
-      <Stack.Screen
-        name="HomeDetail"
-        component={DetailScreen}
-        options={({ route }) => ({
-          title: route.params?.name ?? 'Detalle del Equipo',
-          headerBackTitle: 'Atrás',
-        })}
-      />
-      <Stack.Screen
-        name="CreateEquipment"
-        component={CreateScreen}
-        options={{
-          title: 'Registrar Nuevo Equipo',
-          headerBackTitle: 'Atrás',
-        }}
-      />
-      <Stack.Screen
-        name="EditEquipment"
-        component={EditScreen}
-        options={{
-          title: 'Editar Equipo',
-          headerBackTitle: 'Atrás',
-        }}
-      />
-    </Stack.Navigator>
-  );
-}
-
-/**
- * Tab Navigator Raíz con dos pestañas: Inicio y Favoritos.
- * Badge dinámico en la pestaña Favoritos sincronizado con Zustand (UI State).
- */
 export function RootNavigator(): React.JSX.Element {
-  const savedCount = useSavedStore((state) => state.savedItems.length);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const isLoading = useAuthStore((state) => state.isLoading);
+  const initializeAuth = useAuthStore((state) => state.initializeAuth);
 
-  return (
-    <Tab.Navigator
-      screenOptions={({ route }) => ({
-        headerShown: false,
-        tabBarIcon: ({ focused, color, size }) => {
-          let iconName: keyof typeof Ionicons.glyphMap;
+  useEffect(() => {
+    // Rehidratar sesión segura desde SecureStore al arrancar la app
+    initializeAuth();
+  }, [initializeAuth]);
 
-          if (route.name === 'HomeTab') {
-            iconName = focused ? 'disc' : 'disc-outline';
-          } else if (route.name === 'FavoritesTab') {
-            iconName = focused ? 'heart' : 'heart-outline';
-          } else {
-            iconName = focused ? 'settings' : 'settings-outline';
-          }
+  // Pantalla de Carga / Splash mientras se valida la sesión en SecureStore
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Ionicons name="disc" size={64} color={COLORS.primary} />
+        <Text style={styles.loadingTitle}>BEAT & LIGHT PRO</Text>
+        <ActivityIndicator size="large" color={COLORS.primary} style={styles.spinner} />
+        <Text style={styles.loadingSubtext}>Verificando credenciales cifradas...</Text>
+      </View>
+    );
+  }
 
-          return <Ionicons name={iconName} size={size} color={color} />;
-        },
-        tabBarActiveTintColor: '#61DAFB',
-        tabBarInactiveTintColor: COLORS.textSecondary,
-        tabBarStyle: {
-          backgroundColor: COLORS.surface,
-          borderTopColor: COLORS.border,
-          borderTopWidth: 1,
-          height: 60,
-          paddingBottom: 8,
-          paddingTop: 6,
-        },
-        tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: '600',
-        },
-      })}
-    >
-      <Tab.Screen
-        name="HomeTab"
-        component={HomeStackNavigator}
-        options={{ title: 'Inicio' }}
-      />
-      <Tab.Screen
-        name="FavoritesTab"
-        component={FavoritesScreen}
-        options={{
-          title: 'Favoritos',
-          tabBarBadge: savedCount > 0 ? savedCount : undefined,
-          tabBarBadgeStyle: {
-            backgroundColor: COLORS.primary,
-            color: COLORS.textInverse,
-            fontSize: 11,
-            fontWeight: 'bold',
-          },
-        }}
-      />
-      <Tab.Screen
-        name="SettingsTab"
-        component={SettingsScreen}
-        options={{ title: 'Ajustes' }}
-      />
-    </Tab.Navigator>
-  );
+  // Navegación Condicional Trazable: AuthStack vs AppStack
+  return isAuthenticated ? <AppNavigator /> : <AuthNavigator />;
 }
+
+const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  loadingTitle: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: COLORS.textPrimary,
+    letterSpacing: 2,
+    marginTop: 12,
+  },
+  spinner: {
+    marginTop: 24,
+  },
+  loadingSubtext: {
+    fontSize: 13,
+    color: COLORS.textSecondary,
+    marginTop: 12,
+  },
+});
