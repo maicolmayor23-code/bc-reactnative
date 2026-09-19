@@ -44,7 +44,7 @@ export function EquipmentCard({ item, onPress }: EquipmentCardProps): React.JSX.
         <Image
           source={typeof item.imageUri === 'string' ? { uri: item.imageUri } : item.imageUri}
           style={styles.cardImage}
-          resizeMode="contain"
+          resizeMode="cover"
         />
         {/* Botón rápido de favorito/guardado con el store Zustand */}
         <Pressable
