@@ -29,6 +29,22 @@ export function useEquipments(): UseEquipmentsResult {
   const [isFromCache, setIsFromCache] = useState<boolean>(false);
   const [isOffline, setIsOffline] = useState<boolean>(false);
 
+  // Detección automática del estado offline del navegador o entorno
+  const isBrowserOffline = typeof navigator !== 'undefined' && typeof navigator.onLine === 'boolean' && !navigator.onLine;
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const handleOffline = () => setIsOffline(true);
+      const handleOnline = () => setIsOffline(false);
+      window.addEventListener('offline', handleOffline);
+      window.addEventListener('online', handleOnline);
+      return () => {
+        window.removeEventListener('offline', handleOffline);
+        window.removeEventListener('online', handleOnline);
+      };
+    }
+  }, []);
+
   const query = useQuery<Equipment[], Error>({
     queryKey: ['equipments'],
     queryFn: async () => {
@@ -36,10 +52,8 @@ export function useEquipments(): UseEquipmentsResult {
         const remoteData = await fetchEquipments();
         // Guardar copia de respaldo en AsyncStorage al completar exitosamente
         await AsyncStorage.setItem(CACHE_KEY, JSON.stringify(remoteData));
-        if (typeof navigator !== 'undefined' && navigator.onLine) {
-          setIsFromCache(false);
-          setIsOffline(false);
-        }
+        setIsFromCache(false);
+        setIsOffline(false);
         return remoteData;
       } catch (err) {
         // En caso de fallo de red, intentar cargar desde el caché local de AsyncStorage
@@ -57,35 +71,6 @@ export function useEquipments(): UseEquipmentsResult {
     staleTime: 1000 * 60 * 5,
   });
 
-  const { refetch } = query;
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const handleOffline = () => {
-        setIsOffline(true);
-        setIsFromCache(true);
-      };
-      const handleOnline = () => {
-        setIsOffline(false);
-        setIsFromCache(false);
-        refetch();
-      };
-
-      if (typeof navigator !== 'undefined' && !navigator.onLine) {
-        setIsOffline(true);
-        setIsFromCache(true);
-      }
-
-      window.addEventListener('offline', handleOffline);
-      window.addEventListener('online', handleOnline);
-
-      return () => {
-        window.removeEventListener('offline', handleOffline);
-        window.removeEventListener('online', handleOnline);
-      };
-    }
-  }, [refetch]);
-
   return {
     data: query.data,
     isLoading: query.isLoading,
@@ -93,7 +78,7 @@ export function useEquipments(): UseEquipmentsResult {
     error: query.error,
     isFetching: query.isFetching,
     refetch: query.refetch,
-    isOffline,
+    isOffline: isOffline || isBrowserOffline,
     isFromCache,
   };
 }
