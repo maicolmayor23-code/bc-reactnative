@@ -6,7 +6,7 @@
 // Dominio: DJ / Sonido y Luces (Beat & Light Pro).
 // ============================================================
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { fetchEquipments } from '../services/equipmentService';
@@ -36,8 +36,10 @@ export function useEquipments(): UseEquipmentsResult {
         const remoteData = await fetchEquipments();
         // Guardar copia de respaldo en AsyncStorage al completar exitosamente
         await AsyncStorage.setItem(CACHE_KEY, JSON.stringify(remoteData));
-        setIsFromCache(false);
-        setIsOffline(false);
+        if (typeof navigator !== 'undefined' && navigator.onLine) {
+          setIsFromCache(false);
+          setIsOffline(false);
+        }
         return remoteData;
       } catch (err) {
         // En caso de fallo de red, intentar cargar desde el caché local de AsyncStorage
@@ -54,6 +56,35 @@ export function useEquipments(): UseEquipmentsResult {
     },
     staleTime: 1000 * 60 * 5,
   });
+
+  const { refetch } = query;
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const handleOffline = () => {
+        setIsOffline(true);
+        setIsFromCache(true);
+      };
+      const handleOnline = () => {
+        setIsOffline(false);
+        setIsFromCache(false);
+        refetch();
+      };
+
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        setIsOffline(true);
+        setIsFromCache(true);
+      }
+
+      window.addEventListener('offline', handleOffline);
+      window.addEventListener('online', handleOnline);
+
+      return () => {
+        window.removeEventListener('offline', handleOffline);
+        window.removeEventListener('online', handleOnline);
+      };
+    }
+  }, [refetch]);
 
   return {
     data: query.data,
