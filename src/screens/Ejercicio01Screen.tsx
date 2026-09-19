@@ -29,6 +29,25 @@ export function Ejercicio01Screen(): React.JSX.Element {
   const [storedInSecureStore, setStoredInSecureStore] = useState(false);
   const [userInfo, setUserInfo] = useState<User | null>(null);
 
+  // Al cargar la pantalla, verificar si ya existen tokens almacenados
+  React.useEffect(() => {
+    checkInitialTokens();
+  }, []);
+
+  const checkInitialTokens = async () => {
+    try {
+      const access = await getAccessToken();
+      const refresh = await getRefreshToken();
+      if (access && refresh) {
+        setHasAccessToken(true);
+        setHasRefreshToken(true);
+        setStoredInSecureStore(true);
+      }
+    } catch {
+      // noop
+    }
+  };
+
   /**
    * 1. Login con credenciales de prueba emilys / emilyspass
    */

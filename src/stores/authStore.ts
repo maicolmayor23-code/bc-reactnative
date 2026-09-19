@@ -199,8 +199,12 @@ export const useAuthStore = create<AuthState>()(
           }
         } catch (err) {
           console.warn('Sesión no válida o token expirado en inicio. Limpiando.', err);
-          await clearTokens();
+          try {
+            await clearTokens();
+          } catch {}
           set({ user: null, isAuthenticated: false, isLoading: false });
+        } finally {
+          set({ isLoading: false });
         }
       },
     }),
