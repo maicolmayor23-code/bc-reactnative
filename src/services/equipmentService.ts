@@ -21,10 +21,18 @@ export async function fetchEquipments(): Promise<Equipment[]> {
     if (Array.isArray(response.data) && response.data.length > 0) {
       return response.data;
     }
-  } catch {
-    await apiClient.get('/posts?_limit=10').catch(() => null);
+    return [...localEquipmentsStore];
+  } catch (err) {
+    try {
+      const postsRes = await apiClient.get('/posts?_limit=10');
+      if (postsRes.data) {
+        return [...localEquipmentsStore];
+      }
+      throw err;
+    } catch (netErr) {
+      throw netErr;
+    }
   }
-  return [...localEquipmentsStore];
 }
 
 /**
