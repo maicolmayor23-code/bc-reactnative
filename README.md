@@ -1,130 +1,89 @@
-# 🎧 Beat & Light Pro — Proyecto Semana 08: Autenticación Completa
+# 🎧 Beat & Light Pro — Proyecto Semana 09: Animaciones Básicas
 
-Aplicación móvil profesional desarrollada en **React Native + TypeScript** para el dominio **DJ / Sonido y Luces** (*Beat & Light Pro*). Implementa una arquitectura de **Autenticación JWT Completa**, estado global con **Zustand + Persist**, persistencia cifrada en hardware mediante **Expo SecureStore**, interceptores HTTP de Axios para **Renovación Automática 401 (Auto-Refresh)** y flujo **OAuth 2.0 con PKCE (Expo AuthSession)**.
+Aplicación móvil profesional desarrollada en **React Native + TypeScript** para el dominio **DJ / Sonido y Luces** (*Beat & Light Pro*). Implementa la suite completa de animaciones fluidas con **`Animated API`** y **`LayoutAnimation`** ejecutadas en el hilo nativo de UI a 60 FPS.
 
 ---
 
 ## 🧠 Cuestionario Teórico de Conocimiento (Rúbrica — 30 pts)
 
-### Q1. Estructura de un JSON Web Token (JWT) (10 pts)
+### Q1. Animated.Value y el Hilo de UI Nativo (`useNativeDriver`) (10 pts)
 
-> **Pregunta**: Explica las tres partes de un JWT, su codificación, los claims estándar y por qué una firma digital verifica la integridad pero no cifra la información.
+> **Pregunta**: Explica por qué las animaciones de React Native corren en el hilo nativo de UI y por qué es fundamental usar `useNativeDriver: true` para no bloquear el hilo de JavaScript.
 
-* **Estructura Técnica (Las 3 Partes)**:
-  Un JWT es una cadena compuesta por tres partes codificadas en Base64URL separadas por puntos (`.`):
-  1. **Header**: Contiene los metadatos del token, especificando el tipo de token (`"typ": "JWT"`) y el algoritmo de firma utilizado (`"alg": "HS256"` o `"RS256"`).
-  2. **Payload**: Contiene las declaraciones o *claims* (datos del usuario y de la sesión). Los claims estándar incluyen:
-     * `sub` (*Subject*): Identificador único del usuario (ej. ID de base de datos).
-     * `exp` (*Expiration Time*): Timestamp Unix de fecha/hora de expiración.
-     * `iat` (*Issued At*): Timestamp Unix de emisión del token.
-     * Claims personalizados (ej. `email`, `username`, `role`).
-  3. **Signature**: Firma digital generada mediante el algoritmo especificado (ej. HMAC-SHA256), aplicando una clave secreta del servidor sobre la concatenación codificada del Header y Payload (`Base64URL(Header) + "." + Base64URL(Payload)`).
+* **Arquitectura de Hilos en React Native**:
+  En React Native coexisten dos hilos principales de ejecución:
+  1. **JavaScript Thread**: Encargado de la lógica de negocio, manejo de estado (`useState`, `Zustand`), ciclo de vida de React, renderizado y peticiones de red (`Axios`, `Fetch`).
+  2. **UI Native Thread (Main/UI Thread)**: Encargado de calcular el diseño de pantalla (Yoga), procesar gestos del usuario y pintar los fotogramas (*frames*) en pantalla a 60/120 FPS.
 
-* **Diferencia entre Firma y Cifrado (Seguridad Critical)**:
-  * **El Payload NO está cifrado**: Cualquier persona o cliente que intercepte un JWT puede decodificar las dos primeras partes utilizando funciones estándar como `atob()` o la librería `jwt-decode`.
-  * **La Firma garantiza INTEGRIDAD, no confidencialidad**: La firma evita que un atacante altere el contenido del payload (como cambiar su ID o rol a administrador). Si un atacante modifica un solo carácter del payload en cliente, la firma dejará de coincidir al ser validada en el servidor con la clave secreta. **Por esta razón, NUNCA se deben almacenar contraseñas o secretos en el payload de un JWT.**
+* **El Problema del Bloqueo en JS**:
+  Si una animación calcula sus valores de fotograma dentro del hilo de JavaScript, cualquier operación pesada (como parsear un JSON voluminoso, ejecutar peticiones HTTP o re-renderizar componentes complejos) congelará el hilo de JS, provocando caídas severas de cuadros (*frame drops*) y la sensación de una interfaz "trabada".
 
----
-
-### Q2. Access Tokens vs. Refresh Tokens (10 pts)
-
-> **Pregunta**: Justifica la estrategia de dual token (duraciones, mitigar robo de sesión), el lugar correcto de almacenamiento y el flujo de renovación automática ante un error 401.
-
-* **Estrategia Dual Token y Duración**:
-  * **Access Token (Corta Duración: 15 min – 1h)**: Se envía en el encabezado HTTP `Authorization: Bearer <token>` de cada petición protegida. Al tener un ciclo de vida tan corto, si un token es interceptado en tránsito, el margen de explotación por un atacante es mínimo.
-  * **Refresh Token (Larga Duración: 7 – 30 días)**: Token especial utilizado únicamente para comunicarse con el endpoint de renovación (`/auth/refresh`) y obtener un nuevo `accessToken` cuando el anterior vence. Permite mantener al usuario autenticado sin requerir que ingrese sus credenciales constantemente (excelente UX).
-
-* **Estrategia de Almacenamiento Seguro (SecureStore)**:
-  * **Prohibido AsyncStorage y MMKV sin cifrar**: `AsyncStorage` y `MMKV` almacenan datos en archivos de texto plano dentro del disco del dispositivo, vulnerables a inspecciones o dispositivos enraizados (*rooted/jailbroken*).
-  * **Expo SecureStore (Obligatorio)**: Persiste ambos tokens cifrados utilizando las bóvedas de seguridad del hardware del dispositivo (**iOS Keychain** y **Android Keystore**).
-
-* **Flujo de Renovación Automática (Interceptor 401)**:
-  ```text
-  Petición API con Bearer <accessToken>
-  ↓
-  ¿Respuesta 401 Unauthorized?
-  ├─ NO ──► Retornar respuesta exitosa
-  └─ SÍ ──► Capturar error en Interceptor de Respuesta (Axios)
-            ↓
-            Obtener refreshToken desde SecureStore
-            ↓
-            Llamada HTTP POST /auth/refresh
-            ├─ Éxito ──► Guardar nuevo accessToken en SecureStore
-            │            Reintentar petición original con el nuevo token
-            └─ Fallo ──► Limpiar SecureStore (clearTokens)
-                         Establecer isAuthenticated = false
-                         Redirigir a LoginScreen
-  ```
+* **La Solución: `useNativeDriver: true`**:
+  Al configurar `useNativeDriver: true` al definir una animación (`Animated.timing`, `Animated.spring`), React Native **serializa toda la estructura de la animación hacia el hilo nativo** antes de iniciarla. Una vez enviada, el hilo nativo ejecuta la animación en la GPU/CPU nativa (iOS Keychain/CoreAnimation y Android RenderThread) sin depender en absoluto del hilo de JavaScript durante cada fotograma.
+  
+* **Regla de Uso**:
+  * `useNativeDriver: true`: Obligatorio para transformaciones de opacidad (`opacity`) y geometría (`scale`, `translateY`, `translateX`, `rotate`).
+  * `useNativeDriver: false`: Requerido únicamente para propiedades no soportadas por el driver nativo (propiedades de layout y color como `width`, `height`, `top`, `left`, `backgroundColor`).
 
 ---
 
-### Q3. PKCE en OAuth 2.0 para Aplicaciones Móviles (10 pts)
+### Q2. Distinción de Animaciones: `timing` vs `spring` vs `decay` (10 pts)
 
-> **Pregunta**: Explica qué es PKCE (Proof Key for Code Exchange), por qué las apps móviles lo requieren obligatoriamente y la función de `code_verifier` y `code_challenge`.
+> **Pregunta**: Distingue cuándo utilizar cada tipo de animación en el dominio móvil y cuáles son sus parámetros clave de configuración.
 
-* **Vulnerabilidad de las Apps Móviles**:
-  En el flujo tradicional de OAuth 2.0 (Authorization Code), el servidor espera recibir un `client_secret`. Las aplicaciones web pueden ocultar el `client_secret` en su backend de forma segura. Las aplicaciones móviles **no pueden guardar un `client_secret` de forma segura**, ya que el código binario de la app puede ser descompilado mediante ingeniería inversa.
+| Tipo de Animación | Propósito y Caso de Uso Ideal | Parámetros Clave de Configuración |
+| :--- | :--- | :--- |
+| **`Animated.timing`** | Animaciones lineales o con curvas de desaceleración controladas por tiempo fijo. Ideal para fade in/out, transiciones de pantalla o deslices con duración precisa. | • `toValue`: Valor objetivo.<br>• `duration`: Tiempo en milisegundos.<br>• `easing`: Curva de aceleración (Bézier, Easing.linear, Easing.ease).<br>• `useNativeDriver: boolean`. |
+| **`Animated.spring`** | Animaciones basadas en física de resortes y amortiguación. Ideal para feedback táctil en botones/cards, elementos que rebotan o tarjetas que se comprimen y se expanden. | • `toValue`: Valor objetivo.<br>• `tension`: Rigidez del resorte (mayor valor = movimiento más rápido).<br>• `friction`: Amortiguación (menor valor = mayor rebote).<br>• `bounciness` / `speed`: Control alternativo de rebote y velocidad. |
+| **`Animated.decay`** | Animaciones de desaceleración gradual basadas en una velocidad inicial. Ideal para listas con inercia, tiradas de rueda de vinilo DJ o deslizamientos libres. | • `velocity`: Velocidad inicial del movimiento.<br>• `deceleration`: Factor de desaceleración gradual (default 0.997). |
 
-* **¿Qué es PKCE y cómo funciona?**:
-  **PKCE (Proof Key for Code Exchange)** extiende OAuth 2.0 reemplazando el `client_secret` estático con un secreto dinámico generado por cada intento de autenticación en el dispositivo cliente.
+---
 
-* **Componentes del Flujo PKCE**:
-  1. `code_verifier`: Una cadena aleatoria criptográficamente segura de alta entropía (generada en la app móvil con `expo-crypto`).
-  2. `code_challenge`: El valor derivado aplicando un hash SHA-256 codificado en Base64URL sobre el `code_verifier` (`code_challenge = Base64URL(SHA256(code_verifier))`).
+### Q3. Interpolación y Control de Rango (`interpolate`) (10 pts)
 
-* **Flujo PKCE en 5 Pasos (Expo AuthSession)**:
-  1. La app genera el `code_verifier` y calcula su `code_challenge`.
-  2. La app abre un navegador seguro (`WebBrowser`) enviando el `code_challenge` al proveedor OAuth.
-  3. El usuario autoriza y el proveedor devuelve un `authorization_code` a la URI de redirección (`beatlightpro://`).
-  4. La app envía el `authorization_code` junto con el `code_verifier` original al servidor.
-  5. El servidor calcula `SHA256(code_verifier)` y verifica que coincida con el `code_challenge` enviado en el paso 1. Si coincide, emite los tokens de acceso.
+> **Pregunta**: Explica la función de `interpolate`, los rangos de entrada/salida y el propósito de `extrapolate: 'clamp'`.
+
+* **Función de `interpolate`**:
+  `interpolate` mapea un rango de entrada numérico (`inputRange`) a un rango de salida (`outputRange`) que puede contener valores no numéricos, como cadenas con unidades (grados `'0deg' -> '360deg'`, porcentajes `'0%' -> '100%'`) o códigos de color hexadecimales (`'#ef4444' -> '#22c55e'`). Esto permite que un único `Animated.Value` controle múltiples propiedades visuales al mismo tiempo.
+
+* **Propósito de `extrapolate: 'clamp'`**:
+  Por defecto, React Native utiliza la extrapolación `'extend'`, lo que significa que si el `Animated.Value` sobrepasa los límites de `inputRange`, el valor de salida continuará creciendo o decreciendo proporcionalmente.
+  * `extrapolate: 'clamp'`: **Restringe estrictamente** el valor de salida a los límites establecidos en `outputRange`, impidiendo que los valores se salgan del rango deseado incluso si el valor animado supera los extremos de `inputRange`.
 
 ---
 
 ## 🎯 Dominio Asignado: Beat & Light Pro
 
 * **Dominio**: DJ / Sonido y Luces
-* **Entidad (`Equipment`)**: Consolas Pioneer CDJ 3000, Sistemas Line Array, Controladoras DMX, Cabezas Robóticas LED.
-* **Roles del Dominio**: `Operador DJ`, `Técnico de Iluminación`, `Ingeniero de Sonido`.
-* **Manejo de Autenticación & Persistencia**:
-  * **Tokens (Cifrado SecureStore)**: `blp_auth_access_token` y `blp_auth_refresh_token`.
-  * **Zustand Auth Store (`authStore.ts`)**: Persiste metadatos de usuario (`user`, `isAuthenticated`) mediante `partialize` en disco no volátil. Omite estrictamente los tokens.
-  * **Interceptors Axios (`api.ts`)**: Inyecta tokens en cabecera `Authorization: Bearer` y renueva sesión en error 401.
+* **Entidades Animadas**: Consolas Pioneer CDJ 3000, Sistemas Line Array, Controladoras DMX, Cabezas Robóticas LED, Vinilos DJ, Vúmetros de Señal Audio RMS.
 
 ---
 
-## 🗂️ Estructura del Proyecto
+## 🗂️ Requisitos Funcionales Implementados (Semana 09)
 
-```text
-bc-reactnative-week-04/
-├── app.json                  ← Configuración con scheme: "beatlightpro"
-├── package.json              ← jwt-decode, expo-auth-session, expo-crypto
-├── App.tsx                   ← Entrypoint con QueryClientProvider y RootNavigator
-└── src/
-    ├── components/
-    │   └── FormField.tsx     ← Componente reusable de input RHF + Zod + Toggle Eye
-    ├── navigation/
-    │   ├── types.ts          ← Tipado estricto de AuthStackParamList y AppTabParamList
-    │   ├── AuthNavigator.tsx ← Stack para LoginScreen y RegisterScreen
-    │   ├── AppNavigator.tsx  ← Tab Navigator para área protegida (Home, Ejercicios, Profile)
-    │   └── RootNavigator.tsx ← Swtich reactivo (isAuthenticated/isLoading) sin parpadeo
-    ├── schemas/
-    │   └── authSchema.ts     ← Esquemas Zod (loginSchema, registerSchema con roles)
-    ├── screens/
-    │   ├── LoginScreen.tsx   ← Formulario RHF + Zod + Credenciales prueba emilys
-    │   ├── RegisterScreen.tsx← Registro con RHF + Zod + Selector de roles técnicos
-    │   ├── Ejercicio01Screen.tsx ← Demo JWT Auth, SecureStore y /auth/me
-    │   ├── Ejercicio02Screen.tsx ← Demo OAuth PKCE con Expo AuthSession
-    │   ├── HomeScreen.tsx    ← Catálogo de equipos del dominio
-    │   ├── ProfileScreen.tsx ← Perfil del usuario, métricas del dominio y Logout
-    │   └── SettingsScreen.tsx← Ajustes MMKV y gestión de sesión
-    ├── services/
-    │   ├── api.ts            ← Axios centralizado + Interceptor 401 Auto-Refresh
-    │   ├── authService.ts    ← Llamadas HTTP a dummyjson.com/auth (login, refresh, me)
-    │   └── tokenService.ts   ← Wrapper exclusivo de expo-secure-store
-    └── stores/
-        └── authStore.ts      ← Zustand Auth Store con persist y partialize
-```
+1. **Animación de entrada en `DetailScreen`** (`src/screens/DetailScreen.tsx`):
+   * Al navegar a la pantalla de detalle, el contenido aparece suavemente con `Animated.parallel`.
+   * `opacity`: 0 → 1
+   * `translateY`: 30 → 0
+   * Duración: 500ms, `useNativeDriver: true`.
+
+2. **Feedback táctil en `AnimatedCard`** (`src/components/AnimatedCard.tsx` / `EquipmentCard.tsx`):
+   * Cada tarjeta de la lista de equipos se comprime al presionar con `Animated.spring` para un efecto natural con rebote.
+   * `scale`: 1 → 0.95 (`onPressIn`)
+   * `scale`: 0.95 → 1 con rebote (`onPressOut`)
+
+3. **Barra de progreso en `ProgressBar`** (`src/components/ProgressBar.tsx`):
+   * Muestra el porcentaje de equipos disponibles en inventario de forma animada con `interpolate`.
+   * `width`: `'0%'` → `'100%'`
+   * `backgroundColor`: `#ef4444` (Rojo) → `#facc15` (Amarillo) → `#22c55e` (Verde)
+   * Usa `useNativeDriver: false` para propiedades de layout y color.
+
+4. **Entrada en cascada en `HomeScreen`** (`src/screens/HomeScreen.tsx`):
+   * Los elementos de la lista principal de equipos aparecen en cascada al cargar usando `Animated.stagger(80, [...])`.
+
+5. **LayoutAnimation al agregar / eliminar items** (`src/screens/HomeScreen.tsx`):
+   * Al simular la adición o eliminación de un equipo, el cambio en la lista se anima suavemente con `LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)`.
+   * Incluye la habilitación explícita para Android `UIManager.setLayoutAnimationEnabledExperimental?.(true)` fuera del componente.
 
 ---
 
@@ -137,22 +96,13 @@ bc-reactnative-week-04/
 
 2. **Ejecutar servidor de desarrollo / Web**:
    ```bash
-   pnpm web
+   pnpm start # o pnpm web
    ```
 
-3. **Ejecutar Build Nativo (Requerido por MMKV / SecureStore)**:
+3. **Verificación de Tipos TypeScript**:
    ```bash
-   npx expo prebuild
-   pnpm expo run:android # o pnpm expo run:ios
+   npx tsc --noEmit
    ```
-
----
-
-## 📊 Verificación de Tipos TypeScript
-
-```bash
-npx tsc --noEmit
-```
 
 ---
 
@@ -160,21 +110,17 @@ npx tsc --noEmit
 
 | Criterio de Rúbrica | Implementación Concreta | Archivo Responsable | Prueba Manual Verificable |
 | :--- | :--- | :--- | :--- |
-| **🧠 Criterio 1: JWT** | Cuestionario teórico sobre Header, Payload, Signature, claims e integridad. | `README.md` | Lectura de respuestas Q1 en README |
-| **🧠 Criterio 2: Access vs Refresh** | Explicación de duraciones, mitigar robos, SecureStore e interceptor 401. | `README.md` | Lectura de respuestas Q2 en README |
-| **🧠 Criterio 3: PKCE OAuth** | Explicación de PKCE en móviles, `code_verifier`, `code_challenge` y `expo-crypto`. | `README.md` | Lectura de respuestas Q3 en README |
-| **💪 Ejercicio 01: Login JWT** | Login con credenciales `emilys`/`emilyspass` llamando a `dummyjson.com`. | `src/screens/Ejercicio01Screen.tsx` | Pantalla Ejercicio 01 -> Botón 1 Login |
-| **💪 Ejercicio 01: SecureStore** | Almacenamiento con `SecureStore.setItemAsync` sin texto plano visible. | `src/services/tokenService.ts` | Indicadores de almacenamiento cifrado en Ejercicio 01 |
-| **💪 Ejercicio 01: /auth/me** | Petición `GET /auth/me` con encabezado `Authorization: Bearer <accessToken>`. | `src/services/authService.ts` | Pantalla Ejercicio 01 -> Botón 2 Obtener Perfil |
-| **💪 Ejercicio 01: Logout** | Limpieza de tokens con `SecureStore.deleteItemAsync` y reseteo de estado. | `src/screens/Ejercicio01Screen.tsx` | Pantalla Ejercicio 01 -> Botón 3 Logout |
-| **💪 Ejercicio 02: Redirect URI** | `makeRedirectUri({ scheme: 'beatlightpro' })` sincronizado con `app.json`. | `src/screens/Ejercicio02Screen.tsx` | Pantalla Ejercicio 02 -> Scheme "beatlightpro" |
-| **💪 Ejercicio 02: PKCE Request** | `useAuthRequest` con `usePKCE: true` y scopes del proveedor. | `src/screens/Ejercicio02Screen.tsx` | Pantalla Ejercicio 02 -> Configuración PKCE |
-| **💪 Ejercicio 02: promptAsync** | Disparo del navegador web e interceptación del callback de respuesta. | `src/screens/Ejercicio02Screen.tsx` | Pantalla Ejercicio 02 -> Botón Iniciar Sesión OAuth |
-| **💪 Ejercicio 02: Cancel/Error** | Manejo explícito de `response.type` ('success', 'cancel', 'error') con feedback. | `src/screens/Ejercicio02Screen.tsx` | Pantalla Ejercicio 02 -> Tarjeta de Feedback PKCE |
-| **📦 Producto: useAuthStore** | Store Zustand con `user`, `isAuthenticated`, `login()`, `logout()`, `refreshTokens()`. | `src/stores/authStore.ts` | Login y navegación fluida entre stacks |
-| **📦 Producto: Login Screen** | Formulario RHF + Zod (`loginSchema`) con validaciones y manejo de errores. | `src/screens/LoginScreen.tsx` | Formulario de Login con botón rápido "emilys" |
-| **📦 Producto: Navegación** | Switch dinámico en `RootNavigator` entre `AuthNavigator` y `AppNavigator`. | `src/navigation/RootNavigator.tsx` | Transición sin parpadeos visuales al cambiar de estado |
-| **📦 Producto: Persistencia** | `initializeAuth()` restaura la sesión desde `SecureStore` al reiniciar. | `src/stores/authStore.ts` | Cerrar y reabrir app conservando sesión activa |
-| **📦 Producto: Compilación** | Verificación estricta de tipos TypeScript y build nativo. | `package.json` | Ejecución exitosa de `npx tsc --noEmit` |
-| **⚠️ Penalización: Storage** | Prohibido guardar tokens en AsyncStorage o MMKV. | `src/services/tokenService.ts` | Verificación de código en `tokenService.ts` |
-| **⚠️ Penalización: Texto Plano** | Prohibido mostrar tokens completos en texto plano en la interfaz de usuario. | `src/screens/` | Confirmación en pantallas (se muestran solo estados) |
+| **🧠 Criterio 1: Hilo UI** | Respuesta teórica Q1 sobre `Animated.Value` y `useNativeDriver`. | `README.md` | Lectura de respuesta Q1 |
+| **🧠 Criterio 2: timing/spring** | Respuesta teórica Q2 sobre `timing`, `spring`, `decay` y parámetros. | `README.md` | Lectura de respuesta Q2 |
+| **🧠 Criterio 3: interpolate** | Respuesta teórica Q3 sobre `inputRange`, `outputRange` y `clamp`. | `README.md` | Lectura de respuesta Q3 |
+| **💪 Ejercicio 01: timing/spring** | Fade in/out (`opacity` 0→1→0) y tap spring en botón CUE. | `src/exercises/Ejercicio01.tsx` | Pestaña Ejercicios -> Ejercicio 01 Botones 1 y 2 |
+| **💪 Ejercicio 01: parallel/sequence**| Animación simultánea (fade+slide) y secuencia FX en ráfaga. | `src/exercises/Ejercicio01.tsx` | Pestaña Ejercicios -> Ejercicio 01 Botones 3 y 4 |
+| **💪 Ejercicio 02: Rotación** | Rotación animada de vinilo DJ con `interpolate` (0°→360°). | `src/exercises/Ejercicio02.tsx` | Pestaña Ejercicios -> Ejercicio 02 Botón 1 Vinilo |
+| **💪 Ejercicio 02: Color & Progress**| Progress bar animada con color interpolado (verde → amarillo → rojo). | `src/exercises/Ejercicio02.tsx` | Pestaña Ejercicios -> Ejercicio 02 Botón 2 Potencia |
+| **💪 Ejercicio 02: Stagger** | Entrada en cascada de canales DMX con `Animated.stagger(80, ...)`. | `src/exercises/Ejercicio02.tsx` | Pestaña Ejercicios -> Ejercicio 02 Botón 3 Cascada |
+| **📦 Producto: Entrada HomeScreen** | Carga en cascada stagger al montar la lista principal. | `src/screens/HomeScreen.tsx` | Abrir HomeScreen -> Animación de entrada |
+| **📦 Producto: Feedback Tap Cards** | `AnimatedCard` / `EquipmentCard` con escala spring en tap. | `src/components/EquipmentCard.tsx` | Presionar cualquier tarjeta de equipo |
+| **📦 Producto: ProgressBar** | Barra de progreso animada con el % de disponibilidad del stock. | `src/components/ProgressBar.tsx` | Ver cabecera de HomeScreen |
+| **📦 Producto: LayoutAnimation** | Animación suave al agregar o eliminar equipos de la lista. | `src/screens/HomeScreen.tsx` | Presionar "Agregar" o "Eliminar" en HomeScreen |
+| **📦 Producto: Entrada DetailScreen** | `Animated.parallel` (fade in + slide up en 500ms) al navegar. | `src/screens/DetailScreen.tsx` | Presionar un equipo -> Entrada en DetailScreen |
+| **📦 Producto: Compilación** | Verificación estricta de TypeScript sin errores. | `package.json` | Ejecución exitosa de `npx tsc --noEmit` |

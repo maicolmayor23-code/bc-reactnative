@@ -1,13 +1,15 @@
 // ============================================================
-// SCREEN: DetailScreen
+// SCREEN: DetailScreen (src/screens/DetailScreen.tsx)
 // ============================================================
 // Pantalla de Detalle de Equipo (DJ / Sonido e Iluminación).
-// Consume el Server State mediante useEquipmentById(id) con TanStack Query v5.
-// Mantiene Zustand exclusivamente para el UI State (Guardar/Favorito local).
-// Incluye botón para abrir el formulario de Edición (EditScreen).
+// Requisito Funcional 1: Animación de entrada con Animated.parallel
+//   - opacity: 0 → 1
+//   - translateY: 30 → 0
+//   - Duración: 500ms
+//   - useNativeDriver: true (ejecutado en el hilo nativo de UI)
 // ============================================================
 
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -18,6 +20,7 @@ import {
   SafeAreaView,
   StatusBar,
   ActivityIndicator,
+  Animated,
 } from 'react-native';
 import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -25,6 +28,7 @@ import { useEquipmentById } from '../hooks/useEquipmentById';
 import { COLORS, TYPOGRAPHY, SPACING } from '../theme';
 import { HomeStackParamList } from '../navigation/types';
 import { useSavedStore } from '../stores/savedStore';
+import { AnimatedButton } from '../components/AnimatedButton';
 
 type DetailRouteProp = RouteProp<HomeStackParamList, 'HomeDetail'>;
 type DetailNavigationProp = NativeStackNavigationProp<HomeStackParamList, 'HomeDetail'>;
@@ -39,6 +43,27 @@ export function DetailScreen(): React.JSX.Element {
 
   const isSaved = useSavedStore((state) => state.savedItems.some((equip) => equip.id === id));
   const toggleSaveItem = useSavedStore((state) => state.toggleSaveItem);
+
+  // ------------------------------------------------------------
+  // Requisito Funcional 1: Animated.parallel (fade in + slide up 500ms)
+  // ------------------------------------------------------------
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 500,
+        useNativeDriver: true, // ✅ Hilo nativo para opacidad
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 500,
+        useNativeDriver: true, // ✅ Hilo nativo para transform translateY
+      }),
+    ]).start();
+  }, [fadeAnim, slideAnim]);
 
   if (isLoading) {
     return (
@@ -76,120 +101,125 @@ export function DetailScreen(): React.JSX.Element {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Imagen del Equipo */}
-        <View style={styles.imageContainer}>
-          <Image source={typeof item.imageUri === 'string' ? { uri: item.imageUri } : item.imageUri} style={styles.image} resizeMode="cover" />
-          <View style={styles.imageOverlayBadge}>
-            <Text style={styles.imageBadgeText}>{item.category}</Text>
-          </View>
-        </View>
-
-        {/* Ficha Principal */}
-        <View style={styles.contentContainer}>
-          {/* Status y Rating */}
-          <View style={styles.metaRow}>
-            <View style={[styles.statusBadge, isAvailable ? styles.statusAvailable : styles.statusRented]}>
-              <Text style={[styles.statusText, isAvailable ? styles.statusAvailableText : styles.statusRentedText]}>
-                ● {item.availability}
-              </Text>
-            </View>
-            {item.rating && (
-              <View style={styles.ratingBadge}>
-                <Text style={styles.ratingStar}>★</Text>
-                <Text style={styles.ratingText}>{item.rating.toFixed(1)} / 5.0</Text>
-              </View>
-            )}
-          </View>
-
-          {/* Nombre y Subtítulo */}
-          <Text style={styles.title}>{item.name}</Text>
-          <Text style={styles.subtitle}>{item.subtitle}</Text>
-
-          {/* Tarjeta de Precio */}
-          <View style={styles.priceCard}>
-            <View>
-              <Text style={styles.priceCardLabel}>Tarifa de Alquiler</Text>
-              <Text style={styles.priceCardValue}>${item.pricePerDay} USD <Text style={styles.priceUnit}>/ día</Text></Text>
-            </View>
-            <View style={styles.priceTagBadge}>
-              <Text style={styles.priceTagText}>Garantía Incluida</Text>
+        {/* Wrapper Animado con Fade In + Slide Up */}
+        <Animated.View
+          style={{
+            opacity: fadeAnim,
+            transform: [{ translateY: slideAnim }],
+          }}
+        >
+          {/* Imagen del Equipo */}
+          <View style={styles.imageContainer}>
+            <Image
+              source={typeof item.imageUri === 'string' ? { uri: item.imageUri } : item.imageUri}
+              style={styles.image}
+              resizeMode="cover"
+            />
+            <View style={styles.imageOverlayBadge}>
+              <Text style={styles.imageBadgeText}>{item.category}</Text>
             </View>
           </View>
 
-          {/* Especificaciones Técnicas */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Especificaciones Técnicas</Text>
-            <View style={styles.specGrid}>
-              <View style={styles.specItem}>
-                <Text style={styles.specLabel}>Categoría</Text>
-                <Text style={styles.specValue}>{item.category}</Text>
+          {/* Ficha Principal */}
+          <View style={styles.contentContainer}>
+            {/* Status y Rating */}
+            <View style={styles.metaRow}>
+              <View
+                style={[styles.statusBadge, isAvailable ? styles.statusAvailable : styles.statusRented]}
+              >
+                <Text
+                  style={[
+                    styles.statusText,
+                    isAvailable ? styles.statusAvailableText : styles.statusRentedText,
+                  ]}
+                >
+                  ● {item.availability}
+                </Text>
               </View>
-              <View style={styles.specItem}>
-                <Text style={styles.specLabel}>Identificador</Text>
-                <Text style={styles.specValue}>SKU-{String(item.id).padStart(4, '0')}</Text>
+              {item.rating && (
+                <View style={styles.ratingBadge}>
+                  <Text style={styles.ratingStar}>★</Text>
+                  <Text style={styles.ratingText}>{item.rating.toFixed(1)} / 5.0</Text>
+                </View>
+              )}
+            </View>
+
+            {/* Nombre y Subtítulo */}
+            <Text style={styles.title}>{item.name}</Text>
+            <Text style={styles.subtitle}>{item.subtitle}</Text>
+
+            {/* Tarjeta de Precio */}
+            <View style={styles.priceCard}>
+              <View>
+                <Text style={styles.priceCardLabel}>Tarifa de Alquiler</Text>
+                <Text style={styles.priceCardValue}>
+                  ${item.pricePerDay} USD <Text style={styles.priceUnit}>/ día</Text>
+                </Text>
               </View>
-              <View style={styles.specItem}>
-                <Text style={styles.specLabel}>Uso Recomendado</Text>
-                <Text style={styles.specValue}>Eventos, DJ & Producción</Text>
-              </View>
-              <View style={styles.specItem}>
-                <Text style={styles.specLabel}>Estado Inventario</Text>
-                <Text style={styles.specValue}>{item.availability}</Text>
+              <View style={styles.priceTagBadge}>
+                <Text style={styles.priceTagText}>Garantía Incluida</Text>
               </View>
             </View>
-          </View>
 
-          {/* Información Adicional */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Incluye en la Reserva</Text>
-            <View style={styles.bulletList}>
-              <Text style={styles.bulletItem}>✓ Cableado profesional DMX / XLR / PowerCON</Text>
-              <Text style={styles.bulletItem}>✓ Case de transporte rígido anti-impactos</Text>
-              <Text style={styles.bulletItem}>✓ Asistencia técnica y calibración inicial</Text>
-              <Text style={styles.bulletItem}>✓ Limpieza y sanitización de componentes</Text>
+            {/* Especificaciones Técnicas */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Especificaciones Técnicas</Text>
+              <View style={styles.specGrid}>
+                <View style={styles.specItem}>
+                  <Text style={styles.specLabel}>Categoría</Text>
+                  <Text style={styles.specValue}>{item.category}</Text>
+                </View>
+                <View style={styles.specItem}>
+                  <Text style={styles.specLabel}>Identificador SKU</Text>
+                  <Text style={styles.specValue}>SKU-{String(item.id).padStart(4, '0')}</Text>
+                </View>
+                <View style={styles.specItem}>
+                  <Text style={styles.specLabel}>Uso Recomendado</Text>
+                  <Text style={styles.specValue}>Eventos, DJ & Producción</Text>
+                </View>
+                <View style={styles.specItem}>
+                  <Text style={styles.specLabel}>Estado Inventario</Text>
+                  <Text style={styles.specValue}>{item.availability}</Text>
+                </View>
+              </View>
             </View>
+
+            {/* Información Adicional */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Incluye en la Reserva</Text>
+              <View style={styles.bulletList}>
+                <Text style={styles.bulletItem}>✓ Cableado profesional DMX / XLR / PowerCON</Text>
+                <Text style={styles.bulletItem}>✓ Case de transporte rígido anti-impactos</Text>
+                <Text style={styles.bulletItem}>✓ Asistencia técnica y calibración inicial</Text>
+                <Text style={styles.bulletItem}>✓ Limpieza y sanitización de componentes</Text>
+              </View>
+            </View>
+
+            {/* Botón Animado para Editar Equipo */}
+            <AnimatedButton
+              title="✏️ Editar Especificaciones del Equipo"
+              onPress={() => navigation.navigate('EditEquipment', { id: item.id })}
+              variant="secondary"
+              style={{ marginBottom: SPACING.md }}
+            />
+
+            {/* Botón Animado Zustand: Guardar / Quitar */}
+            <AnimatedButton
+              title={isSaved ? '❤️ En Mis Equipos (Quitar)' : '⭐ Guardar en Mis Equipos'}
+              onPress={() => toggleSaveItem(item)}
+              variant={isSaved ? 'danger' : 'accent'}
+              style={{ marginBottom: SPACING.md }}
+            />
+
+            {/* Botón de Acción Principal */}
+            <AnimatedButton
+              title={isAvailable ? '⚡ Solicitar Reserva de Equipo' : '🔒 No Disponible Actualmente'}
+              onPress={() => alert(`Reserva iniciada para: ${item.name}`)}
+              variant="primary"
+              disabled={!isAvailable}
+            />
           </View>
-
-          {/* Botón para navegar a Editar Equipo (EditScreen) */}
-          <Pressable
-            style={({ pressed }) => [
-              styles.editButton,
-              pressed && styles.reserveButtonPressed,
-            ]}
-            onPress={() => navigation.navigate('EditEquipment', { id: item.id })}
-          >
-            <Text style={styles.editButtonText}>✏️ Editar Especificaciones del Equipo</Text>
-          </Pressable>
-
-          {/* Botón interactivo del Store Zustand (UI State): Guardar / Quitar */}
-          <Pressable
-            style={({ pressed }) => [
-              styles.saveButton,
-              isSaved ? styles.saveButtonActive : styles.saveButtonInactive,
-              pressed && styles.reserveButtonPressed,
-            ]}
-            onPress={() => toggleSaveItem(item)}
-          >
-            <Text style={[styles.saveButtonText, isSaved && styles.saveButtonTextActive]}>
-              {isSaved ? '❤️ En Mis Equipos (Quitar)' : '⭐ Guardar en Mis Equipos'}
-            </Text>
-          </Pressable>
-
-          {/* Botón de Acción Principal */}
-          <Pressable
-            style={({ pressed }) => [
-              styles.reserveButton,
-              !isAvailable && styles.reserveButtonDisabled,
-              pressed && styles.reserveButtonPressed,
-            ]}
-            disabled={!isAvailable}
-            onPress={() => alert(`Reserva iniciada para: ${item.name}`)}
-          >
-            <Text style={styles.reserveButtonText}>
-              {isAvailable ? '⚡ Solicitar Reserva de Equipo' : '🔒 No Disponible Actualmente'}
-            </Text>
-          </Pressable>
-        </View>
+        </Animated.View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -406,60 +436,5 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.fontSizeMD,
     color: COLORS.textSecondary,
     lineHeight: 20,
-  },
-  editButton: {
-    backgroundColor: COLORS.surfaceAlt,
-    paddingVertical: SPACING.md,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginBottom: SPACING.md,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  editButtonText: {
-    color: COLORS.textPrimary,
-    fontSize: TYPOGRAPHY.fontSizeMD,
-    fontWeight: TYPOGRAPHY.fontWeightBold,
-  },
-  saveButton: {
-    paddingVertical: SPACING.md,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginBottom: SPACING.xs,
-    borderWidth: 1,
-  },
-  saveButtonInactive: {
-    backgroundColor: COLORS.surfaceAlt,
-    borderColor: COLORS.primary,
-  },
-  saveButtonActive: {
-    backgroundColor: '#da3633',
-    borderColor: '#f85149',
-  },
-  saveButtonText: {
-    color: COLORS.primary,
-    fontSize: TYPOGRAPHY.fontSizeMD + 1,
-    fontWeight: TYPOGRAPHY.fontWeightBold,
-  },
-  saveButtonTextActive: {
-    color: '#ffffff',
-  },
-  reserveButton: {
-    backgroundColor: COLORS.primary,
-    paddingVertical: SPACING.lg,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginTop: SPACING.sm,
-  },
-  reserveButtonDisabled: {
-    backgroundColor: COLORS.surfaceAlt,
-  },
-  reserveButtonPressed: {
-    opacity: 0.85,
-  },
-  reserveButtonText: {
-    color: COLORS.textInverse,
-    fontSize: TYPOGRAPHY.fontSizeLG,
-    fontWeight: TYPOGRAPHY.fontWeightBold,
   },
 });

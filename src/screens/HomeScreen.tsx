@@ -1,12 +1,14 @@
 // ============================================================
-// SCREEN: HomeScreen
+// SCREEN: HomeScreen (src/screens/HomeScreen.tsx)
 // ============================================================
-// Pantalla principal: Consume el Server State vía useEquipments (useQuery).
-// Incluye estados de Loading (ActivityIndicator), Error (Mensaje + Reintentar),
-// Vacío (ListEmptyComponent) y Pull-to-refresh (onRefresh + isFetching).
+// Pantalla principal: Integra las animaciones exigidas en la Semana 09:
+//   1. Entrada en cascada con Animated.stagger(80, [...]) al cargar la lista.
+//   2. LayoutAnimation al agregar o eliminar items de equipos.
+//   3. Habilitación de Android con UIManager fuera del componente.
+//   4. Barra de progreso animada (ProgressBar) con el stock/disponibilidad del dominio.
 // ============================================================
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { HomeStackParamList } from '../navigation/types';
@@ -26,12 +28,21 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   ListRenderItem,
+  LayoutAnimation,
+  UIManager,
+  Animated,
 } from 'react-native';
 import { Item } from '../types';
 import { EquipmentCard } from '../components/EquipmentCard';
+import { ProgressBar } from '../components/ProgressBar';
 import { useEquipments } from '../hooks/useEquipments';
 import { usePreferences } from '../hooks/usePreferences';
 import { COLORS, TYPOGRAPHY, SPACING } from '../theme';
+
+// ⚠️ Habilitación obligatoria de LayoutAnimation en Android (fuera del componente)
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 type HomeScreenNavigationProp = NativeStackNavigationProp<HomeStackParamList, 'HomeList'>;
 
@@ -41,18 +52,26 @@ export function HomeScreen(): React.JSX.Element {
   const DOMAIN_SUBTITLE = 'Catálogo de Equipos de DJ, Sonido e Iluminación';
 
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [localItems, setLocalItems] = useState<Item[]>([]);
 
   // Consumo de MMKV Preferences
   const { sortOrder, compactMode, itemsPerPage } = usePreferences();
 
-  // Consumo de Server State + AsyncStorage Cache
+  // Consumo de Server State
   const { data: equipments, isLoading, isError, isOffline, isFromCache, error, isFetching, refetch } = useEquipments();
+
+  // Actualizar items locales cuando la query responde
+  useEffect(() => {
+    if (equipments) {
+      setLocalItems(equipments);
+    }
+  }, [equipments]);
 
   /**
    * Filtrado, ordenamiento MMKV y paginación.
    */
   const filteredItems = useMemo<Item[]>(() => {
-    let list = [...(equipments ?? [])];
+    let list = [...localItems];
     const query = searchQuery.trim().toLowerCase();
     if (query) {
       list = list.filter(
@@ -63,7 +82,6 @@ export function HomeScreen(): React.JSX.Element {
       );
     }
 
-    // Aplicar ordenamiento MMKV
     if (sortOrder === 'price') {
       list.sort((a, b) => a.pricePerDay - b.pricePerDay);
     } else if (sortOrder === 'rating') {
@@ -72,13 +90,70 @@ export function HomeScreen(): React.JSX.Element {
       list.sort((a, b) => a.name.localeCompare(b.name));
     }
 
-    // Aplicar cantidad de ítems por página
     if (itemsPerPage && itemsPerPage > 0) {
       list = list.slice(0, itemsPerPage);
     }
 
     return list;
-  }, [equipments, searchQuery, sortOrder, itemsPerPage]);
+  }, [localItems, searchQuery, sortOrder, itemsPerPage]);
+
+  // 计算 % de Disponibilidad del inventario para la ProgressBar
+  const availabilityPercentage = useMemo(() => {
+    if (!localItems.length) return 0;
+    const availableCount = localItems.filter((eq) => eq.availability === 'Disponible').length;
+    return Math.round((availableCount / localItems.length) * 100);
+  }, [localItems]);
+
+  // ------------------------------------------------------------
+  // Requisito Funcional 4: Entrada en Cascada con Animated.stagger(80, [...])
+  // ------------------------------------------------------------
+  const itemAnimations = useRef<Animated.Value[]>([]);
+
+  useEffect(() => {
+    if (filteredItems.length > 0) {
+      // Recrear valores animados para la cantidad de elementos filtrados
+      itemAnimations.current = filteredItems.map(() => new Animated.Value(0));
+
+      Animated.stagger(
+        80, // 80ms de desfase en cascada
+        itemAnimations.current.map((anim) =>
+          Animated.timing(anim, {
+            toValue: 1,
+            duration: 400,
+            useNativeDriver: true, // ✅ Hilo nativo para opacity y translateY
+          })
+        )
+      ).start();
+    }
+  }, [filteredItems.length]);
+
+  // ------------------------------------------------------------
+  // Requisito Funcional 5: LayoutAnimation al Eliminar un Item de la Lista
+  // ------------------------------------------------------------
+  const handleRemoveItem = useCallback((id: string) => {
+    // Animar la transición del layout antes de actualizar el estado
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setLocalItems((prev) => prev.filter((item) => item.id !== id));
+  }, []);
+
+  // ------------------------------------------------------------
+  // Requisito Funcional 5: LayoutAnimation al Agregar un Item Simulado
+  // ------------------------------------------------------------
+  const handleAddQuickItem = useCallback(() => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.spring);
+    const newId = String(Date.now());
+    const newItem: Item = {
+      id: newId,
+      name: `Consola DMX ${newId.slice(-4)}`,
+      category: 'Iluminación',
+      subtitle: 'Controlador de Luces Neón 512 Canales',
+      pricePerDay: 180,
+      availability: 'Disponible',
+      imageUri: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=500&q=80',
+      rating: 4.9,
+    };
+    setLocalItems((prev) => [newItem, ...prev]);
+  }, []);
 
   /**
    * Navegación al detalle del equipo.
@@ -91,8 +166,35 @@ export function HomeScreen(): React.JSX.Element {
   );
 
   const renderItem: ListRenderItem<Item> = useCallback(
-    ({ item }) => <EquipmentCard item={item} onPress={handleItemPress} compactMode={compactMode} />,
-    [handleItemPress, compactMode]
+    ({ item, index }) => {
+      const animValue = itemAnimations.current[index] || new Animated.Value(1);
+
+      const translateY = animValue.interpolate({
+        inputRange: [0, 1],
+        outputRange: [30, 0],
+      });
+
+      return (
+        <Animated.View
+          style={{
+            opacity: animValue,
+            transform: [{ translateY }],
+          }}
+        >
+          <View style={styles.cardItemWrapper}>
+            <EquipmentCard item={item} onPress={handleItemPress} compactMode={compactMode} />
+            <TouchableOpacity
+              style={styles.deleteBadge}
+              onPress={() => handleRemoveItem(item.id)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Text style={styles.deleteBadgeText}>✕ Eliminar</Text>
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
+      );
+    },
+    [handleItemPress, compactMode, handleRemoveItem]
   );
 
   const keyExtractor = useCallback((item: Item): string => item.id, []);
@@ -102,9 +204,6 @@ export function HomeScreen(): React.JSX.Element {
     []
   );
 
-  /**
-   * Componente de Estado Vacío (ListEmptyComponent)
-   */
   const renderListEmpty = useCallback(
     (): React.JSX.Element => (
       <View style={styles.emptyContainer}>
@@ -113,26 +212,22 @@ export function HomeScreen(): React.JSX.Element {
         <Text style={styles.emptySubtitle}>
           {searchQuery
             ? `No encontramos ningún equipo que coincida con "${searchQuery}".`
-            : 'No hay equipos disponibles en el inventario. ¡Puedes registrar el primero!'}
+            : 'No hay equipos disponibles en el inventario. ¡Puedes agregar el primero!'}
         </Text>
         {searchQuery ? (
           <Pressable style={styles.actionButton} onPress={() => setSearchQuery('')}>
             <Text style={styles.actionButtonText}>Limpiar búsqueda</Text>
           </Pressable>
         ) : (
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => navigation.navigate('CreateEquipment')}
-          >
-            <Text style={styles.actionButtonText}>➕ Registrar Nuevo Equipo</Text>
+          <TouchableOpacity style={styles.actionButton} onPress={handleAddQuickItem}>
+            <Text style={styles.actionButtonText}>➕ Simular Agregar Equipo</Text>
           </TouchableOpacity>
         )}
       </View>
     ),
-    [searchQuery, navigation]
+    [searchQuery, handleAddQuickItem]
   );
 
-  // 1. Estado de Carga Inicial (Loading State)
   if (isLoading) {
     return (
       <SafeAreaView style={styles.safeArea}>
@@ -140,13 +235,11 @@ export function HomeScreen(): React.JSX.Element {
         <View style={styles.centeredContainer}>
           <ActivityIndicator size="large" color={COLORS.primary} />
           <Text style={styles.loadingText}>Cargando catálogo de equipos...</Text>
-          <Text style={styles.loadingSubtext}>Conectando a la API en tiempo real</Text>
         </View>
       </SafeAreaView>
     );
   }
 
-  // 2. Estado de Error (Error State)
   if (isError) {
     return (
       <SafeAreaView style={styles.safeArea}>
@@ -155,7 +248,7 @@ export function HomeScreen(): React.JSX.Element {
           <Text style={styles.errorIcon}>⚠️</Text>
           <Text style={styles.errorTitle}>Error al cargar los equipos</Text>
           <Text style={styles.errorSubtitle}>
-            {error?.message ?? 'No pudimos establecer comunicación con el servidor de la API.'}
+            {error?.message ?? 'No pudimos establecer comunicación con el servidor.'}
           </Text>
           <TouchableOpacity style={styles.retryButton} onPress={() => refetch()}>
             <Text style={styles.retryButtonText}>🔄 Reintentar conexión</Text>
@@ -165,7 +258,6 @@ export function HomeScreen(): React.JSX.Element {
     );
   }
 
-  // 3. Renderizado Principal (Lista de Equipos con Pull-to-Refresh)
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
@@ -184,12 +276,19 @@ export function HomeScreen(): React.JSX.Element {
                 <Text style={styles.headerSubtitle}>{DOMAIN_SUBTITLE}</Text>
               </View>
 
-              <TouchableOpacity
-                style={styles.addButton}
-                onPress={() => navigation.navigate('CreateEquipment')}
-              >
-                <Text style={styles.addButtonText}>➕ Crear</Text>
+              {/* Botón con LayoutAnimation para agregar item rápido */}
+              <TouchableOpacity style={styles.addButton} onPress={handleAddQuickItem}>
+                <Text style={styles.addButtonText}>➕ Agregar</Text>
               </TouchableOpacity>
+            </View>
+
+            {/* Requisito Funcional 3: Barra de Progreso animada en la Cabecera */}
+            <View style={styles.progressSection}>
+              <ProgressBar
+                progress={availabilityPercentage}
+                label="Stock de Equipos Disponibles en Inventario"
+                showPercentage
+              />
             </View>
 
             {/* Barra de Búsqueda */}
@@ -200,7 +299,7 @@ export function HomeScreen(): React.JSX.Element {
                   style={styles.searchInput}
                   value={searchQuery}
                   onChangeText={setSearchQuery}
-                  placeholder="Buscar por nombre, categoría..."
+                  placeholder="Buscar equipo o categoría..."
                   placeholderTextColor={COLORS.inputPlaceholder}
                   returnKeyType="search"
                   autoCorrect={false}
@@ -223,7 +322,7 @@ export function HomeScreen(): React.JSX.Element {
               </View>
             )}
 
-            {/* Lista con FlatList, Pull-to-Refresh y ListEmptyComponent */}
+            {/* Lista principal con Stagger y LayoutAnimation */}
             <FlatList
               data={filteredItems}
               keyExtractor={keyExtractor}
@@ -267,11 +366,6 @@ const styles = StyleSheet.create({
     fontWeight: TYPOGRAPHY.fontWeightBold,
     color: COLORS.textPrimary,
   },
-  loadingSubtext: {
-    marginTop: SPACING.xs,
-    fontSize: TYPOGRAPHY.fontSizeSM,
-    color: COLORS.textSecondary,
-  },
   errorIcon: {
     fontSize: 54,
     marginBottom: SPACING.md,
@@ -299,16 +393,13 @@ const styles = StyleSheet.create({
     fontWeight: TYPOGRAPHY.fontWeightBold,
     fontSize: TYPOGRAPHY.fontSizeMD,
   },
-
-  // Header
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: SPACING.xl,
-    paddingVertical: SPACING.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.surfaceAlt,
+    paddingTop: SPACING.lg,
+    paddingBottom: SPACING.sm,
     backgroundColor: COLORS.surface,
   },
   headerTitleContainer: {
@@ -343,8 +434,13 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.fontSizeSM,
     fontWeight: TYPOGRAPHY.fontWeightBold,
   },
-
-  // Búsqueda
+  progressSection: {
+    backgroundColor: COLORS.surface,
+    paddingHorizontal: SPACING.xl,
+    paddingBottom: SPACING.md,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.surfaceAlt,
+  },
   searchContainer: {
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
@@ -379,8 +475,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
   },
-
-  // Lista
   listContent: {
     padding: SPACING.lg,
     paddingBottom: SPACING.xxxl,
@@ -389,8 +483,24 @@ const styles = StyleSheet.create({
   separator: {
     height: SPACING.lg,
   },
-
-  // Empty State
+  cardItemWrapper: {
+    position: 'relative',
+  },
+  deleteBadge: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    backgroundColor: 'rgba(218, 54, 51, 0.9)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    zIndex: 10,
+  },
+  deleteBadgeText: {
+    color: '#ffffff',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -429,8 +539,6 @@ const styles = StyleSheet.create({
     fontWeight: TYPOGRAPHY.fontWeightBold,
     fontSize: TYPOGRAPHY.fontSizeMD,
   },
-
-  // Banner Offline
   offlineBanner: {
     backgroundColor: '#d97706',
     paddingVertical: SPACING.sm,

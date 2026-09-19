@@ -2,8 +2,9 @@
 // COMPONENT: EquipmentCard (src/components/EquipmentCard.tsx)
 // ============================================================
 // Tarjeta reutilizable para mostrar un equipo del dominio DJ / Sonido y Luces.
+// Requisito Funcional 2: Integra AnimatedCard / Animated.spring para feedback
+// táctil natural con rebote (scale: 1 → 0.95 → 1).
 // Integra el estado global de Zustand para guardar/quitar de favoritos.
-// Utiliza las constantes del sistema de theming (COLORS, TYPOGRAPHY, SPACING).
 // ============================================================
 
 import React from 'react';
@@ -17,6 +18,7 @@ import {
 import { Equipment } from '../types';
 import { COLORS, TYPOGRAPHY, SPACING } from '../theme';
 import { useSavedStore } from '../stores/savedStore';
+import { AnimatedCard } from './AnimatedCard';
 
 interface EquipmentCardProps {
   item: Equipment;
@@ -35,14 +37,7 @@ export function EquipmentCard({ item, onPress, compactMode = false }: EquipmentC
 
   if (compactMode) {
     return (
-      <Pressable
-        style={({ pressed }) => [
-          styles.card,
-          styles.compactCard,
-          pressed && styles.cardPressed,
-        ]}
-        onPress={() => onPress(item)}
-      >
+      <AnimatedCard onPress={() => onPress(item)} style={styles.compactCardContainer}>
         <View style={styles.compactRow}>
           <Image
             source={typeof item.imageUri === 'string' ? { uri: item.imageUri } : item.imageUri}
@@ -66,18 +61,12 @@ export function EquipmentCard({ item, onPress, compactMode = false }: EquipmentC
             <Text style={{ fontSize: 16 }}>{isSaved ? '❤️' : '🤍'}</Text>
           </Pressable>
         </View>
-      </Pressable>
+      </AnimatedCard>
     );
   }
 
   return (
-    <Pressable
-      style={({ pressed }) => [
-        styles.card,
-        pressed && styles.cardPressed,
-      ]}
-      onPress={() => onPress(item)}
-    >
+    <AnimatedCard onPress={() => onPress(item)} style={styles.card}>
       <View style={styles.imageWrapper}>
         <Image
           source={typeof item.imageUri === 'string' ? { uri: item.imageUri } : item.imageUri}
@@ -130,7 +119,7 @@ export function EquipmentCard({ item, onPress, compactMode = false }: EquipmentC
           </View>
         </View>
       </View>
-    </Pressable>
+    </AnimatedCard>
   );
 }
 
@@ -145,10 +134,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: COLORS.border,
-  },
-  cardPressed: {
-    opacity: 0.9,
-    borderColor: COLORS.primary,
   },
   imageWrapper: {
     position: 'relative',
@@ -271,8 +256,12 @@ const styles = StyleSheet.create({
     fontWeight: TYPOGRAPHY.fontWeightBold,
   },
   // Estilos Modo Compacto
-  compactCard: {
+  compactCardContainer: {
+    backgroundColor: COLORS.surface,
+    borderRadius: 12,
     padding: SPACING.sm,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   compactRow: {
     flexDirection: 'row',

@@ -1,185 +1,194 @@
 // ============================================================
-// DESEMPEÑO: Ejercicio 02 — MMKV + SecureStore (Semana 07 - Persistencia Local)
+// DESEMPEÑO: Ejercicio 02 — Interpolation & Stagger (Semana 09)
 // ============================================================
 // Criterios de Evaluación (20 pts):
-// 1. Paso 1-2: MMKV sincrónico — storage.set() / storage.getString() funcionan sin await (7 pts)
-// 2. Paso 3: Custom hook useMMKVString o useMMKVBoolean con listener reactivo (6 pts)
-// 3. Paso 4: SecureStore — setItemAsync / getItemAsync para dato sensible, sin valores en texto plano en el código (7 pts)
+// 1. Rotación animada con interpolate (0°→360°) para vinilo DJ / giratorio (5 pts)
+// 2. Color interpolado (verde → amarillo → rojo) según nivel de vúmetro de audio (5 pts)
+// 3. Barra de progreso animada (width 0% → 100%) (5 pts)
+// 4. Animated.stagger para animar lista de canales DMX en cascada (5 pts)
 // Dominio: Beat & Light Pro (DJ / Sonido e Iluminación).
 // ============================================================
 
-import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, Pressable, Switch, StyleSheet, ScrollView } from 'react-native';
-import { useMMKVString, useMMKVBoolean } from 'react-native-mmkv';
-import { storage } from '../storage/mmkv';
-import * as SecureStore from 'expo-secure-store';
-
-const SYNC_KEY = 'demo_sync_mode';
-const REACTIVE_KEY = 'demo_reactive_theme';
-const SECURE_KEY = 'demo_secure_access_pin';
+import React, { useRef, useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, Animated } from 'react-native';
+import { COLORS, TYPOGRAPHY, SPACING } from '../theme';
+import { ProgressBar } from '../components/ProgressBar';
+import { AnimatedButton } from '../components/AnimatedButton';
 
 export function Ejercicio02Component(): React.JSX.Element {
-  // ============================================================
-  // PASO 1 & 2: MMKV Sincrónico sin await
-  // ============================================================
-  const [syncValue, setSyncValue] = useState<string>(() => {
-    // Lectura sincrónica instantánea al inicializar
-    return storage.getString(SYNC_KEY) ?? 'Normal';
+  // ------------------------------------------------------------
+  // 1. Rotación Interpolada (0° → 360°) — Vinilo DJ Giratorio
+  // ------------------------------------------------------------
+  const spinAnim = useRef(new Animated.Value(0)).current;
+  const [isSpinning, setIsSpinning] = useState(false);
+  const loopRef = useRef<Animated.CompositeAnimation | null>(null);
+
+  const toggleSpin = () => {
+    if (isSpinning) {
+      loopRef.current?.stop();
+      setIsSpinning(false);
+    } else {
+      spinAnim.setValue(0);
+      loopRef.current = Animated.loop(
+        Animated.timing(spinAnim, {
+          toValue: 1,
+          duration: 2500,
+          useNativeDriver: true, // ✅ Native driver para transform rotate
+        })
+      );
+      loopRef.current.start();
+      setIsSpinning(true);
+    }
+  };
+
+  const spinRotate = spinAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
   });
 
-  const handleSaveSync = (mode: string) => {
-    // 1. Escrita sincrónica — sin necesidad de async/await
-    storage.set(SYNC_KEY, mode);
-    const readDirectly = storage.getString(SYNC_KEY);
-    setSyncValue(readDirectly ?? mode);
+  // ------------------------------------------------------------
+  // 2. Color Interpolado & 3. Barra de Progreso (0% → 100%)
+  // ------------------------------------------------------------
+  const [progressVal, setProgressVal] = useState(65);
+
+  const handleRandomProgress = () => {
+    const nextVal = Math.floor(Math.random() * 95) + 5;
+    setProgressVal(nextVal);
   };
 
-  // ============================================================
-  // PASO 3: Hooks reactivos de MMKV (useMMKVBoolean)
-  // ============================================================
-  // 2. Listener reactivo automático sincronizado con la memoria y el disco
-  const [darkMode, setDarkMode] = useMMKVBoolean(REACTIVE_KEY, storage);
-  const [stageMode, setStageMode] = useMMKVString('demo_stage_mode', storage);
+  // ------------------------------------------------------------
+  // 4. Animated.stagger — Animación en Cascada de Canales DMX
+  // ------------------------------------------------------------
+  const CHANNELS = [
+    { id: '1', name: 'Canal 01: Subwoofers Master', level: '85 dB' },
+    { id: '2', name: 'Canal 02: Line Array Izquierdo', level: '92 dB' },
+    { id: '3', name: 'Canal 03: Line Array Derecho', level: '92 dB' },
+    { id: '4', name: 'Canal 04: Cabezas Robóticas DMX', level: 'Preset Auto' },
+    { id: '5', name: 'Canal 05: Máquina de Humo / Haz FX', level: 'Standby' },
+  ];
 
-  // ============================================================
-  // PASO 4: SecureStore Cifrado de Datos Sensibles
-  // ============================================================
-  const [inputPin, setInputPin] = useState<string>('');
-  const [hasStoredPin, setHasStoredPin] = useState<boolean>(false);
-  const [pinLength, setPinLength] = useState<number>(0);
-  const [secureMessage, setSecureMessage] = useState<string>('');
+  // Crear 5 valores animados para la opacidad y posición de cada canal
+  const staggerAnims = useRef(CHANNELS.map(() => new Animated.Value(0))).current;
 
   useEffect(() => {
-    verifySecureStoreStatus();
+    runStagger();
   }, []);
 
-  const verifySecureStoreStatus = async () => {
-    try {
-      // 3. getItemAsync de forma asíncrona segura
-      const stored = await SecureStore.getItemAsync(SECURE_KEY);
-      if (stored) {
-        setHasStoredPin(true);
-        setPinLength(stored.length);
-      } else {
-        setHasStoredPin(false);
-        setPinLength(0);
-      }
-    } catch (err) {
-      setHasStoredPin(false);
-    }
-  };
+  const runStagger = () => {
+    // Resetear valores a 0
+    staggerAnims.forEach((anim) => anim.setValue(0));
 
-  const handleSaveSecurePin = async () => {
-    if (!inputPin.trim()) return;
-    try {
-      // 3. setItemAsync para cifrado en Keychain/Keystore
-      await SecureStore.setItemAsync(SECURE_KEY, inputPin.trim());
-      setInputPin('');
-      await verifySecureStoreStatus();
-      setSecureMessage('🔒 PIN cifrado y almacenado en SecureStore sin exponer texto plano.');
-    } catch (err) {
-      setSecureMessage('Error al guardar en SecureStore.');
-    }
-  };
-
-  const handleDeleteSecurePin = async () => {
-    try {
-      await SecureStore.deleteItemAsync(SECURE_KEY);
-      await verifySecureStoreStatus();
-      setSecureMessage('🗑️ PIN cifrado eliminado correctamente.');
-    } catch (err) {
-      setSecureMessage('Error al eliminar PIN.');
-    }
+    // Stagger con 80ms de retraso entre cada elemento
+    Animated.stagger(
+      80, // 80ms delay entre cada uno
+      staggerAnims.map((anim) =>
+        Animated.timing(anim, {
+          toValue: 1,
+          duration: 350,
+          useNativeDriver: true,
+        })
+      )
+    ).start();
   };
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>Ejercicio 02: MMKV Sincrónico & Expo SecureStore</Text>
-      <Text style={styles.subtitle}>Demostración de almacenamiento sincrónico JSI y cifrado Keychain/Keystore</Text>
+      <Text style={styles.title}>Ejercicio 02: Interpolación & Stagger</Text>
+      <Text style={styles.subtitle}>
+        Mapeo de valores no numéricos y cascadas animadas en Beat & Light Pro
+      </Text>
 
-      {/* Paso 1-2: MMKV Sincrónico sin await */}
+      {/* Criterio 1: Rotación Interpolada (0° → 360°) */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>1. MMKV Sincrónico (storage.set / getString sin await)</Text>
+        <Text style={styles.sectionTitle}>1. interpolate — Rotación Vinilo DJ (0° → 360°)</Text>
         <Text style={styles.description}>
-          MMKV ejecuta lecturas y escrituras inmediatas mediante la interfaz C++ JSI sin bloquear el hilo JS.
+          Transforma un Animated.Value lineal de 0 a 1 en rotación continua en grados usando el hilo nativo.
         </Text>
-        <View style={styles.row}>
-          <Pressable style={styles.chipButton} onPress={() => handleSaveSync('Ecualización Directa')}>
-            <Text style={styles.chipText}>Modo Directo</Text>
-          </Pressable>
-          <Pressable style={styles.chipButton} onPress={() => handleSaveSync('Preset DJ Club')}>
-            <Text style={styles.chipText}>Preset Club</Text>
-          </Pressable>
+
+        <View style={styles.centerBox}>
+          <Animated.View
+            style={[
+              styles.vinylDisk,
+              {
+                transform: [{ rotate: spinRotate }],
+              },
+            ]}
+          >
+            <View style={styles.vinylCenter} />
+            <Text style={styles.vinylText}>PIONEER DJ</Text>
+          </Animated.View>
         </View>
-        <Text style={styles.resultText}>
-          Estado sincrónico en disco: <Text style={styles.highlight}>{syncValue}</Text>
-        </Text>
+
+        <AnimatedButton
+          title={isSpinning ? '⏹️ Detener Vinilo' : '▶️ Girar Vinilo (33 RPM)'}
+          onPress={toggleSpin}
+          variant={isSpinning ? 'danger' : 'primary'}
+        />
       </View>
 
-      {/* Paso 3: Custom hook reactivo */}
+      {/* Criterios 2 y 3: Color Interpolado y Barra de Progreso */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>2. MMKV Hooks Reactivos (useMMKVBoolean / useMMKVString)</Text>
-        <View style={styles.switchRow}>
-          <Text style={styles.label}>Modo Escenario Oscuro (Dark Theme):</Text>
-          <Switch
-            value={darkMode ?? false}
-            onValueChange={(val) => setDarkMode(val)}
-            trackColor={{ false: '#30363d', true: '#38bdf8' }}
-            thumbColor={darkMode ? '#ffffff' : '#8b949e'}
+        <Text style={styles.sectionTitle}>2 & 3. Barra de Progreso e Interpolación de Color</Text>
+        <Text style={styles.description}>
+          Anima el ancho de la barra de 0% a 100% mientras cambia el color dinámicamente:
+          Rojo (#ef4444) → Amarillo (#facc15) → Verde (#22c55e).
+        </Text>
+
+        <ProgressBar
+          progress={progressVal}
+          label="Carga de Potencia de Escenario RMS"
+          showPercentage
+        />
+
+        <View style={{ marginTop: SPACING.md }}>
+          <AnimatedButton
+            title="⚡ Cambiar Nivel de Potencia RMS"
+            onPress={handleRandomProgress}
+            variant="accent"
           />
         </View>
-        <View style={styles.row}>
-          {(['Line Array', 'Subwoofers', 'Luces DMX'] as const).map((mode) => (
-            <Pressable
-              key={mode}
-              style={[styles.smallChip, stageMode === mode && styles.smallChipActive]}
-              onPress={() => setStageMode(mode)}
-            >
-              <Text style={[styles.smallChipText, stageMode === mode && styles.smallChipTextActive]}>
-                {mode}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-        <Text style={styles.resultText}>
-          Modo seleccionado: <Text style={styles.highlight}>{stageMode ?? 'Ninguno'}</Text>
-        </Text>
       </View>
 
-      {/* Paso 4: SecureStore Cifrado */}
+      {/* Criterio 4: Animated.stagger (Entrada en Cascada) */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>3. SecureStore (setItemAsync / getItemAsync Cifrado)</Text>
+        <Text style={styles.sectionTitle}>4. Animated.stagger — Entrada en Cascada</Text>
         <Text style={styles.description}>
-          Guarda y recupera un dato sensible sin mostrar el valor en texto plano en la interfaz.
+          Carga en cascada la lista de canales del controlador de sonido con 80ms de desfase entre cada item.
         </Text>
-        <View style={styles.tokenBox}>
-          <Text style={styles.tokenBoxText}>
-            {hasStoredPin
-              ? `🔒 Clave cifrada activa (${pinLength} dígitos/caracteres en Keychain/Keystore)`
-              : '⚠️ Sin PIN seguro configurado'}
-          </Text>
-        </View>
-        <TextInput
-          style={styles.input}
-          value={inputPin}
-          onChangeText={setInputPin}
-          placeholder="Ingrese nuevo PIN de mesa de mezclas..."
-          placeholderTextColor="#8b949e"
-          secureTextEntry
-        />
-        <View style={styles.row}>
-          <Pressable style={styles.primaryButton} onPress={handleSaveSecurePin}>
-            <Text style={styles.buttonText}>🔒 Guardar Cifrado</Text>
-          </Pressable>
-          {hasStoredPin && (
-            <Pressable style={styles.dangerButton} onPress={handleDeleteSecurePin}>
-              <Text style={styles.buttonText}>🗑️ Eliminar</Text>
-            </Pressable>
-          )}
-        </View>
-      </View>
 
-      {secureMessage !== '' && <Text style={styles.statusToast}>{secureMessage}</Text>}
+        <View style={styles.channelsList}>
+          {CHANNELS.map((ch, idx) => {
+            const translateY = staggerAnims[idx].interpolate({
+              inputRange: [0, 1],
+              outputRange: [25, 0],
+            });
+
+            return (
+              <Animated.View
+                key={ch.id}
+                style={[
+                  styles.channelRow,
+                  {
+                    opacity: staggerAnims[idx],
+                    transform: [{ translateY }],
+                  },
+                ]}
+              >
+                <Text style={styles.channelName}>{ch.name}</Text>
+                <View style={styles.levelBadge}>
+                  <Text style={styles.levelText}>{ch.level}</Text>
+                </View>
+              </Animated.View>
+            );
+          })}
+        </View>
+
+        <AnimatedButton
+          title="🔄 Reejecutar Cascada (Stagger 80ms)"
+          onPress={runStagger}
+          variant="secondary"
+        />
+      </View>
     </ScrollView>
   );
 }
@@ -187,145 +196,106 @@ export function Ejercicio02Component(): React.JSX.Element {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0d1117',
+    backgroundColor: COLORS.background,
   },
   content: {
-    padding: 16,
+    padding: SPACING.lg,
+    paddingBottom: SPACING.xxxl,
   },
   title: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#38bdf8',
-    marginBottom: 4,
+    fontSize: TYPOGRAPHY.fontSizeXL,
+    fontWeight: TYPOGRAPHY.fontWeightBold,
+    color: COLORS.primary,
+    marginBottom: SPACING.xs,
   },
   subtitle: {
-    fontSize: 13,
-    color: '#8b949e',
-    marginBottom: 16,
+    fontSize: TYPOGRAPHY.fontSizeSM,
+    color: COLORS.textSecondary,
+    marginBottom: SPACING.lg,
   },
   section: {
-    backgroundColor: '#161b22',
-    padding: 14,
-    borderRadius: 12,
-    marginBottom: 14,
+    backgroundColor: COLORS.surface,
+    padding: SPACING.lg,
+    borderRadius: 14,
+    marginBottom: SPACING.lg,
     borderWidth: 1,
-    borderColor: '#30363d',
+    borderColor: COLORS.border,
   },
   sectionTitle: {
-    fontSize: 15,
-    fontWeight: 'bold',
-    color: '#f0f6fc',
-    marginBottom: 6,
+    fontSize: TYPOGRAPHY.fontSizeLG,
+    fontWeight: TYPOGRAPHY.fontWeightBold,
+    color: COLORS.textPrimary,
+    marginBottom: SPACING.xs,
   },
   description: {
-    fontSize: 12,
-    color: '#8b949e',
-    marginBottom: 10,
+    fontSize: TYPOGRAPHY.fontSizeSM,
+    color: COLORS.textSecondary,
+    marginBottom: SPACING.md,
+    lineHeight: 18,
   },
-  row: {
-    flexDirection: 'row',
-    gap: 8,
-    marginVertical: 6,
+  centerBox: {
+    alignItems: 'center',
+    marginVertical: SPACING.md,
   },
-  chipButton: {
-    backgroundColor: '#21262d',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#38bdf8',
+  vinylDisk: {
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    backgroundColor: '#111827',
+    borderWidth: 6,
+    borderColor: '#374151',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.5,
+    shadowRadius: 6,
+    elevation: 6,
   },
-  chipText: {
-    color: '#38bdf8',
-    fontSize: 13,
-    fontWeight: 'bold',
+  vinylCenter: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: COLORS.primary,
+    borderWidth: 4,
+    borderColor: '#ffffff',
   },
-  switchRow: {
+  vinylText: {
+    position: 'absolute',
+    bottom: 12,
+    fontSize: 8,
+    fontWeight: TYPOGRAPHY.fontWeightBold,
+    color: COLORS.textSecondary,
+    letterSpacing: 1,
+  },
+  channelsList: {
+    marginVertical: SPACING.md,
+    gap: SPACING.sm,
+  },
+  channelRow: {
+    backgroundColor: COLORS.surfaceAlt,
+    padding: SPACING.md,
+    borderRadius: 10,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
-  label: {
-    color: '#f0f6fc',
-    fontSize: 13,
+  channelName: {
+    color: COLORS.textPrimary,
+    fontSize: TYPOGRAPHY.fontSizeSM + 1,
+    fontWeight: TYPOGRAPHY.fontWeightSemiBold,
   },
-  smallChip: {
-    backgroundColor: '#0d1117',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+  levelBadge: {
+    backgroundColor: COLORS.primaryDim,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.xs,
     borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#30363d',
   },
-  smallChipActive: {
-    backgroundColor: '#38bdf8',
-    borderColor: '#38bdf8',
-  },
-  smallChipText: {
-    color: '#c9d1d9',
-    fontSize: 12,
-  },
-  smallChipTextActive: {
-    color: '#0d1117',
-    fontWeight: 'bold',
-  },
-  resultText: {
-    color: '#c9d1d9',
-    fontSize: 13,
-    marginTop: 6,
-  },
-  highlight: {
-    color: '#7ee787',
-    fontWeight: 'bold',
-  },
-  tokenBox: {
-    backgroundColor: '#0d1117',
-    padding: 10,
-    borderRadius: 8,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: '#30363d',
-  },
-  tokenBoxText: {
-    color: '#e3b341',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  input: {
-    backgroundColor: '#0d1117',
-    color: '#f0f6fc',
-    padding: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#30363d',
-    marginBottom: 10,
-    fontSize: 14,
-  },
-  primaryButton: {
-    flex: 1,
-    backgroundColor: '#38bdf8',
-    padding: 10,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  dangerButton: {
-    flex: 1,
-    backgroundColor: '#da3633',
-    padding: 10,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  buttonText: {
-    color: '#ffffff',
-    fontWeight: 'bold',
-    fontSize: 13,
-  },
-  statusToast: {
-    color: '#7ee787',
-    textAlign: 'center',
-    fontWeight: 'bold',
-    fontSize: 13,
-    marginTop: 8,
+  levelText: {
+    color: COLORS.primary,
+    fontSize: TYPOGRAPHY.fontSizeXS + 1,
+    fontWeight: TYPOGRAPHY.fontWeightBold,
   },
 });
