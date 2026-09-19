@@ -17,7 +17,7 @@ export interface Item {
   subtitle: string;
   pricePerDay: number;
   availability: EquipmentAvailability;
-  imageUri: string;
+  imageUri: string | any;
   rating?: number;
 }
 

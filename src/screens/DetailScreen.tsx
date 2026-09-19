@@ -64,7 +64,7 @@ export function DetailScreen(): React.JSX.Element {
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Imagen del Equipo */}
         <View style={styles.imageContainer}>
-          <Image source={{ uri: item.imageUri }} style={styles.image} resizeMode="cover" />
+          <Image source={typeof item.imageUri === 'string' ? { uri: item.imageUri } : item.imageUri} style={styles.image} resizeMode="cover" />
           <View style={styles.imageOverlayBadge}>
             <Text style={styles.imageBadgeText}>{item.category}</Text>
           </View>
