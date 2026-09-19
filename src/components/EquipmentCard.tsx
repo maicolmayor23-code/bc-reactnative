@@ -42,7 +42,7 @@ export function EquipmentCard({ item, onPress }: EquipmentCardProps): React.JSX.
     >
       <View style={styles.imageWrapper}>
         <Image
-          source={{ uri: item.imageUri }}
+          source={typeof item.imageUri === 'string' ? { uri: item.imageUri } : item.imageUri}
           style={styles.cardImage}
           resizeMode="cover"
         />

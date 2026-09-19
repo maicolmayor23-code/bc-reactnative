@@ -2,6 +2,7 @@
 // MOCK DATA — src/data/mockData.ts
 // ============================================================
 // Catálogo completo de equipos para el dominio DJ / Sonido e Iluminación (10+ items).
+// Conectado con las imágenes locales almacenadas en src/assets/.
 // ============================================================
 
 import { Item } from '../types';
@@ -14,7 +15,7 @@ export const MOCK_ITEMS: Item[] = [
     subtitle: 'Controlador DJ de 4 canales con Jog Cutter y Merge FX',
     pricePerDay: 85,
     availability: 'Disponible',
-    imageUri: 'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?auto=format&fit=crop&w=600&q=80',
+    imageUri: require('../assets/Pioneer DDJ-FLX6.png'),
     rating: 4.9,
   },
   {
@@ -24,7 +25,7 @@ export const MOCK_ITEMS: Item[] = [
     subtitle: 'Sistema de audio activo profesional con Subwoofer de 18"',
     pricePerDay: 180,
     availability: 'Disponible',
-    imageUri: 'https://images.unsplash.com/photo-1545454675-3531b543be5d?auto=format&fit=crop&w=600&q=80',
+    imageUri: require('../assets/Kit Line Array EV 3000W.png'),
     rating: 5.0,
   },
   {
@@ -34,7 +35,7 @@ export const MOCK_ITEMS: Item[] = [
     subtitle: 'Luz robótica DMX de alto alcance con gobos y prisma de 8 caras',
     pricePerDay: 50,
     availability: 'Disponible',
-    imageUri: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?auto=format&fit=crop&w=600&q=80',
+    imageUri: require('../assets/Cabeza Móvil Beam LED 230W.png'),
     rating: 4.8,
   },
   {
@@ -44,7 +45,7 @@ export const MOCK_ITEMS: Item[] = [
     subtitle: 'Disparador de niebla densa con LEDs RGB de alta potencia',
     pricePerDay: 40,
     availability: 'En Alquiler',
-    imageUri: 'https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?auto=format&fit=crop&w=600&q=80',
+    imageUri: require('../assets/Máquina de Humo FX Pro 1500W.png'),
     rating: 4.7,
   },
   {
@@ -54,7 +55,7 @@ export const MOCK_ITEMS: Item[] = [
     subtitle: 'Audífonos de monitoreo profesional para DJ con máximo aislamiento',
     pricePerDay: 25,
     availability: 'Disponible',
-    imageUri: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=600&q=80',
+    imageUri: require('../assets/Sennheiser HD 25 Special Edition.png'),
     rating: 4.9,
   },
   {
@@ -64,7 +65,7 @@ export const MOCK_ITEMS: Item[] = [
     subtitle: 'Consola de mezcla digital de 40 entradas y 25 buses con faders motorizados',
     pricePerDay: 130,
     availability: 'Disponible',
-    imageUri: 'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?auto=format&fit=crop&w=600&q=80',
+    imageUri: require('../assets/Behringer X32 Compact.png'),
     rating: 4.9,
   },
   {
@@ -74,7 +75,7 @@ export const MOCK_ITEMS: Item[] = [
     subtitle: 'Proyector láser show profesional con más de 100 patrones programados',
     pricePerDay: 70,
     availability: 'En Alquiler',
-    imageUri: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?auto=format&fit=crop&w=600&q=80',
+    imageUri: require('../assets/Láser Robótico RGB 3W DMX.png'),
     rating: 4.6,
   },
   {
@@ -84,7 +85,7 @@ export const MOCK_ITEMS: Item[] = [
     subtitle: 'Altavoz amplificado de 15 pulgadas con Bluetooth y DSP avanzado',
     pricePerDay: 45,
     availability: 'Disponible',
-    imageUri: 'https://images.unsplash.com/photo-1545454675-3531b543be5d?auto=format&fit=crop&w=600&q=80',
+    imageUri: require('../assets/JBL EON715 1300W.png'),
     rating: 4.8,
   },
   {
@@ -94,7 +95,7 @@ export const MOCK_ITEMS: Item[] = [
     subtitle: 'Sistema de micrófono inalámbrico de mano profesional de largo alcance',
     pricePerDay: 35,
     availability: 'Disponible',
-    imageUri: 'https://images.unsplash.com/photo-1520523839897-bd0b52f945a0?auto=format&fit=crop&w=600&q=80',
+    imageUri: require('../assets/Shure BLX24.png'),
     rating: 5.0,
   },
   {
@@ -104,7 +105,7 @@ export const MOCK_ITEMS: Item[] = [
     subtitle: 'Controlador de iluminación USB/DMX con software de programación en vivo',
     pricePerDay: 30,
     availability: 'Disponible',
-    imageUri: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?auto=format&fit=crop&w=600&q=80',
+    imageUri: require('../assets/Chauvet ShowXpress DMX.png'),
     rating: 4.7,
   },
 ];
