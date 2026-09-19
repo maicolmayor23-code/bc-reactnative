@@ -1,89 +1,77 @@
-# 🎧 Beat & Light Pro — Proyecto Semana 06: Formularios con React Hook Form + Zod
+# 🎧 Beat & Light Pro — Proyecto Semana 07: Persistencia Local
 
-Aplicación móvil profesional desarrollada en **React Native + TypeScript** para el dominio **DJ / Sonido y Luces** (*Beat & Light Pro*). Implementa la arquitectura oficial de la **Semana 06** integrando **React Hook Form**, esquemas de validación estricta con **Zod**, resolver con **`zodResolver`** y componentes reutilizables (`FormField`), manteniendo **TanStack Query v5** para el estado del servidor (*Server State*) y **Zustand** para el estado de interfaz (*UI State* - Favoritos).
-
----
-
-## 🧠 Knowledge / Conceptos Teóricos para la Rúbrica
-
-### Q1. Ventaja de `Controller` frente a `register` en React Native
-
-* **¿Por qué `Controller` es indispensable en React Native?**  
-  En React web HTML, los elementos `<input>` exponen `ref` nativos directos que `register` de React Hook Form puede enlazar directamente al DOM. En React Native, el componente `<TextInput>` **no expone un `ref` de la misma manera** y sus eventos funcionan de forma distinta (por ejemplo, `onChangeText` entrega directamente la cadena `string` en lugar de un `SyntheticEvent`).  
-  El componente `<Controller>` actúa como un adaptador o puente controlado que recibe las props `{ onChange, onBlur, value }` en su render prop y las conecta limpiamente con cualquier componente nativo o personalizado en React Native sin requerir manipular el DOM.
+Aplicación móvil profesional desarrollada en **React Native + TypeScript** para el dominio **DJ / Sonido y Luces** (*Beat & Light Pro*). Implementa la arquitectura de **Persistencia Local de la Semana 07** integrando **MMKV** para preferencias en tiempo real, **AsyncStorage** para caché offline con fallback y banner de alerta, y **Expo SecureStore** para la protección cifrada de datos sensibles.
 
 ---
 
-### Q2. Validación con Zod y Coerción Numérica (`z.coerce.number()`)
+## 🧠 Cuestionario Teórico de Conocimiento (Rúbrica — 30 pts)
 
-* **¿Por qué se requiere `z.coerce.number()` en React Native?**  
-  En React Native, todos los componentes `<TextInput>` gestionan su estado interno en forma de cadenas de texto (`string`), incluso si se especifica `keyboardType="numeric"`. Sin la coerción (`z.coerce`), Zod rechazaría la entrada al esperar un tipo `number` primitivo.  
-  `z.coerce.number()` convierte la cadena a número antes de ejecutar las reglas de validación (como `.positive()` o `.min()`), garantizando que la entrada sea parseada y validada correctamente sin fallos de tipo en runtime.
+### Q1. Cuándo usar cada storage en una aplicación (10 pts)
+
+> **Escenario**: En una aplicación necesitas guardar: (a) el tema claro/oscuro que el usuario eligió, (b) el listado de últimas transacciones/equipos para mostrar offline, (c) el token JWT de sesión o código de acceso.
+
+* **(a) Tema claro/oscuro → MMKV (`react-native-mmkv`)**:
+  * **Justificación**: Es una preferencia de interfaz de usuario no sensible que se consulta en cada renderizado inicial de las pantallas. MMKV funciona de manera **sincrónica** gracias a C++/JSI sin requerir `await`, garantizando que la UI aplique el tema inmediatamente sin parpadeos (*flashes*) de interfaz.
+* **(b) Listado para caché offline → AsyncStorage (`@react-native-async-storage/async-storage`)**:
+  * **Justificación**: Es una estructura de datos de lista/JSON de tamaño mediano/grande. AsyncStorage es el estándar asíncrono ideal para guardar colecciones de datos en disco sin saturar el llavero cifrado del sistema operativo.
+* **(c) Token JWT de sesión / Clave de acceso → Expo SecureStore (`expo-secure-store`)**:
+  * **Justificación**: Es información confidencial y altamente sensible. SecureStore almacena y cifra los datos en las bóvedas de seguridad del hardware del sistema operativo (**iOS Keychain** y **Android Keystore**), evitando ataques de inspección de archivos en texto plano.
 
 ---
 
-### Q3. Inferencia de Tipos (`z.infer<typeof schema>`) vs Interfaces Manuales
+### Q2. Por qué MMKV requiere Build Nativo y no funciona en Expo Go (10 pts)
 
-* **¿Qué ventajas ofrece `z.infer` frente a escribir una interfaz TypeScript manual?**  
-  1. **Principio DRY (Don't Repeat Yourself)**: Evita la duplicación de código al eliminar la necesidad de mantener una interfaz separada que replique los campos y tipos definidos en el esquema.
-  2. **Sincronización Automática**: Cualquier cambio o adición de campos en el esquema Zod actualiza automáticamente el tipo de TypeScript en todo el proyecto.
-  3. **Garantía en Runtime y Compilación**: Asegura que el tipo de datos verificado durante la ejecución (runtime) y el tipo en tiempo de compilación (TypeScript) estén siempre perfectamente alineados y sincronizados.
+* **Explicación Técnica**:  
+  Las librerías de almacenamiento tradicionales se comunican mediante el *Bridge* asíncrono de React Native (serializando JSON entre JS y Nativo). En cambio, `react-native-mmkv` utiliza **JSI (JavaScript Interface)** y **Nitro Modules**, exponiendo punteros de memoria C++ directa al motor JavaScript (Hermes/V8).
+* **Limitación de Expo Go**:  
+  Expo Go es una aplicación precompilada con un conjunto cerrado de módulos nativos. Dado que `react-native-mmkv` requiere compilar código C++ nativo dentro del binario de la aplicación, **no se puede ejecutar en Expo Go sin compilar**.
+* **Solución**:  
+  Se debe generar un build nativo de desarrollo mediante `expo prebuild` ejecutando `pnpm expo run:android` o `pnpm expo run:ios`.
+
+---
+
+### Q3. AsyncStorage vs `useState` para persistencia (10 pts)
+
+* **`useState` (Memoria RAM Volátil)**:  
+  Reside en la memoria RAM del proceso de la aplicación. Al cerrar la aplicación o matar el proceso en segundo plano, la memoria RAM asignada se libera por completo y todos los estados almacenados en `useState` se destruyen e inician en sus valores predeterminados al abrir la app nuevamente.
+* **AsyncStorage (Sistema de Archivos en Disco)**:  
+  Escribe los datos de forma no volátil en el sistema de archivos permanente del almacenamiento interno del dispositivo. Al cerrar y reabrir la app, los datos persisten intactos en disco y son recuperados mediante promesas asíncronas (`getItem`).
 
 ---
 
 ## 🎯 Dominio Asignado: Beat & Light Pro
 
 * **Dominio**: DJ / Sonido y Luces
-* **Modelo de Datos (`Equipment`)**:
-  * `name`: `string` — Modelo del equipo (mín. 2 chars, ej. *Pioneer CDJ-3000*, *Kit Line Array 4000W*)
-  * `category`: `'DJ Gear' | 'Sonido' | 'Iluminación' | 'Efectos FX'`
-  * `subtitle`: `string` — Especificación técnica del equipo (mín. 5 chars)
-  * `pricePerDay`: `number` — Tarifa diaria de alquiler en USD (coercionado a número positivo > 0)
-  * `availability`: `'Disponible' | 'En Alquiler'`
-  * `imageUri`: `string` — URL válida de la fotografía del equipo
-  * `rating`: `number` — Calificación del producto (mín. 1.0, máx. 5.0)
+* **Entidad (`Equipment`)**: Modelo de equipos profesionales de sonido, iluminación y DJ Gear (Pioneer CDJ, Kits Line Array, Consolas DMX, Robóticas LED).
+* **Manejo de Persistencia**:
+  * **Preferencias MMKV**: `sortOrder` (Nombre, Precio, Rating), `compactMode` (Vista reducida de tarjetas), `itemsPerPage` (Cantidad de equipos por lote).
+  * **Caché AsyncStorage**: Copia de respaldo automática `@cached_equipments_v1` consumida cuando no hay red o la API de equipos falla.
+  * **SecureStore**: Almacenamiento cifrado de `blp_operator_access_token` (Token de Operador DJ / Código de Acceso a Consola).
 
 ---
 
-## 🏗️ Arquitectura de Capas de la Semana 06
+## 🏗️ Arquitectura de Persistencia Local (Semana 07)
 
 ```text
 Screens (src/screens/)
-  ├── HomeScreen.tsx         ← Lista de catálogo consumida con TanStack Query v5
-  ├── DetailScreen.tsx       ← Ficha de detalle + Botón de navegación a EditEquipment
-  ├── CreateScreen.tsx       ← Formulario de creación (useForm + zodResolver + FormField + useCreateEquipment)
-  └── EditScreen.tsx         ← Formulario de edición (useEquipmentById + reset() en useEffect + useUpdateEquipment)
+  ├── HomeScreen.tsx         ← Aplica sortOrder MMKV, compactMode y Banner Offline de AsyncStorage
+  ├── SettingsScreen.tsx     ← Configuración en tiempo real (MMKV) + Gestión de Token Cifrado (SecureStore)
+  ├── CreateScreen.tsx       ← Formulario de creación (Semana 06)
+  ├── EditScreen.tsx         ← Formulario de edición (Semana 06)
+  └── FavoritesScreen.tsx    ← UI State de Equipos Guardados (Zustand)
        │
-       ▼
-Componente Reutilizable (src/components/)
-  └── FormField.tsx          ← Componente genérico que encapsula Controller + TextInput + <Text error>
+       ├──► Custom Hooks (src/hooks/)
+       │     ├── usePreferences.ts   ← Instancia MMKV (useMMKVString, useMMKVBoolean, useMMKVNumber)
+       │     └── useEquipments.ts    ← TanStack Query v5 + AsyncStorage fallback (isOffline, isFromCache)
        │
-       ▼
-Esquemas Zod (src/schemas/)
-  └── equipmentSchema.ts    ← z.object con reglas + export type EquipmentFormData = z.infer<typeof equipmentSchema>
+       ├──► Services (src/services/)
+       │     ├── secureStoreService.ts ← expo-secure-store (saveOperatorToken, getOperatorToken, deleteOperatorToken)
+       │     ├── equipmentService.ts   ← Peticiones Axios
+       │     └── api.ts                ← Instancia Axios centralizada
        │
-       ▼
-Custom Hooks (src/hooks/)
-  ├── useEquipments.ts       ← Query ['equipments']
-  ├── useEquipmentById.ts    ← Query ['equipment', id]
-  ├── useCreateEquipment.ts  ← Mutation POST + invalidateQueries(['equipments'])
-  └── useUpdateEquipment.ts  ← Mutation PUT + invalidateQueries(['equipments'], ['equipment', id])
-       │
-       ▼
-Service Layer (src/services/)
-  ├── api.ts                ← Instancia Axios centralizada con Interceptors y timeout
-  └── equipmentService.ts   ← Funciones puras HTTP: fetchEquipments, fetchEquipmentById, createEquipment, updateEquipment
+       └──► Storage (src/storage/)
+             └── mmkv.ts              ← new MMKV({ id: 'beat-light-pro-storage' })
 ```
-
----
-
-## 💡 Separación Estricta de Responsabilidades
-
-| Tipo de Estado | Tecnología | Responsabilidad |
-| :--- | :--- | :--- |
-| **Form State** | **React Hook Form + Zod** | Captura de datos de inputs, validación declarativa, manejo de errores inline y estado `isSubmitting`. |
-| **Server State** | **TanStack Query v5** | Peticiones HTTP, reintentos, caché remoto, refetch automático e invalidación en mutaciones (`invalidateQueries`). |
-| **UI State** | **Zustand** | Estado global de la interfaz del usuario (`savedItems` en Favoritos). |
 
 ---
 
@@ -94,9 +82,13 @@ Service Layer (src/services/)
    pnpm install
    ```
 
-2. **Iniciar el servidor de desarrollo Expo**:
+2. **Ejecutar Build Nativo (Requerido por MMKV)**:
    ```bash
-   pnpm start
+   # En Android:
+   pnpm expo run:android
+
+   # En iOS:
+   pnpm expo run:ios
    ```
 
 ---
@@ -108,5 +100,3 @@ Para comprobar que el proyecto cumple al 100% con TypeScript estricto sin errore
 ```bash
 npx tsc --noEmit
 ```
-
-*Resultado obtenido: 0 errores de compilación.*

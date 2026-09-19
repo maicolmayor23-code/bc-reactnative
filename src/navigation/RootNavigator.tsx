@@ -15,6 +15,7 @@ import { DetailScreen } from '../screens/DetailScreen';
 import { CreateScreen } from '../screens/CreateScreen';
 import { EditScreen } from '../screens/EditScreen';
 import { FavoritesScreen } from '../screens/FavoritesScreen';
+import { SettingsScreen } from '../screens/SettingsScreen';
 import { HomeStackParamList, RootTabParamList } from './types';
 import { COLORS } from '../theme';
 import { useSavedStore } from '../stores/savedStore';
@@ -87,8 +88,10 @@ export function RootNavigator(): React.JSX.Element {
 
           if (route.name === 'HomeTab') {
             iconName = focused ? 'disc' : 'disc-outline';
-          } else {
+          } else if (route.name === 'FavoritesTab') {
             iconName = focused ? 'heart' : 'heart-outline';
+          } else {
+            iconName = focused ? 'settings' : 'settings-outline';
           }
 
           return <Ionicons name={iconName} size={size} color={color} />;
@@ -127,6 +130,11 @@ export function RootNavigator(): React.JSX.Element {
             fontWeight: 'bold',
           },
         }}
+      />
+      <Tab.Screen
+        name="SettingsTab"
+        component={SettingsScreen}
+        options={{ title: 'Ajustes' }}
       />
     </Tab.Navigator>
   );

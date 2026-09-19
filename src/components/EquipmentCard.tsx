@@ -21,9 +21,10 @@ import { useSavedStore } from '../stores/savedStore';
 interface EquipmentCardProps {
   item: Equipment;
   onPress: (item: Equipment) => void;
+  compactMode?: boolean;
 }
 
-export function EquipmentCard({ item, onPress }: EquipmentCardProps): React.JSX.Element {
+export function EquipmentCard({ item, onPress, compactMode = false }: EquipmentCardProps): React.JSX.Element {
   const isAvailable = item.availability === 'Disponible';
 
   // Selectores específicos de Zustand para UI State (Favoritos)
@@ -31,6 +32,43 @@ export function EquipmentCard({ item, onPress }: EquipmentCardProps): React.JSX.
     state.savedItems.some((saved) => saved.id === item.id)
   );
   const toggleSaveItem = useSavedStore((state) => state.toggleSaveItem);
+
+  if (compactMode) {
+    return (
+      <Pressable
+        style={({ pressed }) => [
+          styles.card,
+          styles.compactCard,
+          pressed && styles.cardPressed,
+        ]}
+        onPress={() => onPress(item)}
+      >
+        <View style={styles.compactRow}>
+          <Image
+            source={typeof item.imageUri === 'string' ? { uri: item.imageUri } : item.imageUri}
+            style={styles.compactImage}
+            resizeMode="cover"
+          />
+          <View style={styles.compactContent}>
+            <View style={styles.badgeRow}>
+              <Text style={styles.compactCategory}>{item.category}</Text>
+              <Text style={styles.priceValue}>${item.pricePerDay}/día</Text>
+            </View>
+            <Text style={styles.compactTitle} numberOfLines={1}>
+              {item.name}
+            </Text>
+          </View>
+          <Pressable
+            style={styles.compactHeartButton}
+            onPress={() => toggleSaveItem(item)}
+            hitSlop={8}
+          >
+            <Text style={{ fontSize: 16 }}>{isSaved ? '❤️' : '🤍'}</Text>
+          </Pressable>
+        </View>
+      </Pressable>
+    );
+  }
 
   return (
     <Pressable
@@ -231,5 +269,38 @@ const styles = StyleSheet.create({
     color: COLORS.textInverse,
     fontSize: TYPOGRAPHY.fontSizeSM + 1,
     fontWeight: TYPOGRAPHY.fontWeightBold,
+  },
+  // Estilos Modo Compacto
+  compactCard: {
+    padding: SPACING.sm,
+  },
+  compactRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  compactImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+    marginRight: SPACING.md,
+  },
+  compactContent: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  compactCategory: {
+    fontSize: TYPOGRAPHY.fontSizeXS,
+    color: COLORS.primary,
+    fontWeight: TYPOGRAPHY.fontWeightBold,
+  },
+  compactTitle: {
+    fontSize: TYPOGRAPHY.fontSizeMD,
+    fontWeight: TYPOGRAPHY.fontWeightBold,
+    color: COLORS.textPrimary,
+    marginTop: 2,
+  },
+  compactHeartButton: {
+    padding: SPACING.xs,
+    marginLeft: SPACING.sm,
   },
 });

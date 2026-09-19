@@ -25,6 +25,7 @@ export type HomeStackParamList = {
 export type RootTabParamList = {
   HomeTab: NavigatorScreenParams<HomeStackParamList>;
   FavoritesTab: undefined;
+  SettingsTab: undefined;
 };
 
 /**

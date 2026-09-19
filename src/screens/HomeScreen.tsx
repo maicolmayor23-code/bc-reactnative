@@ -30,6 +30,7 @@ import {
 import { Item } from '../types';
 import { EquipmentCard } from '../components/EquipmentCard';
 import { useEquipments } from '../hooks/useEquipments';
+import { usePreferences } from '../hooks/usePreferences';
 import { COLORS, TYPOGRAPHY, SPACING } from '../theme';
 
 type HomeScreenNavigationProp = NativeStackNavigationProp<HomeStackParamList, 'HomeList'>;
@@ -41,24 +42,43 @@ export function HomeScreen(): React.JSX.Element {
 
   const [searchQuery, setSearchQuery] = useState<string>('');
 
-  // Consumo del Server State desde TanStack Query v5
-  const { data: equipments, isLoading, isError, error, isFetching, refetch } = useEquipments();
+  // Consumo de MMKV Preferences
+  const { sortOrder, compactMode, itemsPerPage } = usePreferences();
+
+  // Consumo de Server State + AsyncStorage Cache
+  const { data: equipments, isLoading, isError, isOffline, isFromCache, error, isFetching, refetch } = useEquipments();
 
   /**
-   * Filtrado dinámico optimizado con useMemo.
+   * Filtrado, ordenamiento MMKV y paginación.
    */
   const filteredItems = useMemo<Item[]>(() => {
-    const list = equipments ?? [];
+    let list = [...(equipments ?? [])];
     const query = searchQuery.trim().toLowerCase();
-    if (!query) return list;
+    if (query) {
+      list = list.filter(
+        (item) =>
+          item.name.toLowerCase().includes(query) ||
+          item.category.toLowerCase().includes(query) ||
+          item.subtitle.toLowerCase().includes(query)
+      );
+    }
 
-    return list.filter(
-      (item) =>
-        item.name.toLowerCase().includes(query) ||
-        item.category.toLowerCase().includes(query) ||
-        item.subtitle.toLowerCase().includes(query)
-    );
-  }, [equipments, searchQuery]);
+    // Aplicar ordenamiento MMKV
+    if (sortOrder === 'price') {
+      list.sort((a, b) => a.pricePerDay - b.pricePerDay);
+    } else if (sortOrder === 'rating') {
+      list.sort((a, b) => b.rating - a.rating);
+    } else {
+      list.sort((a, b) => a.name.localeCompare(b.name));
+    }
+
+    // Aplicar cantidad de ítems por página
+    if (itemsPerPage && itemsPerPage > 0) {
+      list = list.slice(0, itemsPerPage);
+    }
+
+    return list;
+  }, [equipments, searchQuery, sortOrder, itemsPerPage]);
 
   /**
    * Navegación al detalle del equipo.
@@ -71,8 +91,8 @@ export function HomeScreen(): React.JSX.Element {
   );
 
   const renderItem: ListRenderItem<Item> = useCallback(
-    ({ item }) => <EquipmentCard item={item} onPress={handleItemPress} />,
-    [handleItemPress]
+    ({ item }) => <EquipmentCard item={item} onPress={handleItemPress} compactMode={compactMode} />,
+    [handleItemPress, compactMode]
   );
 
   const keyExtractor = useCallback((item: Item): string => item.id, []);
@@ -193,6 +213,15 @@ export function HomeScreen(): React.JSX.Element {
                 )}
               </View>
             </View>
+
+            {/* Banner de Estado Offline */}
+            {(isOffline || isFromCache) && (
+              <View style={styles.offlineBanner}>
+                <Text style={styles.offlineBannerText}>
+                  ⚠️ Mostrando datos sin red (Caché local)
+                </Text>
+              </View>
+            )}
 
             {/* Lista con FlatList, Pull-to-Refresh y ListEmptyComponent */}
             <FlatList
@@ -399,5 +428,19 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     fontWeight: TYPOGRAPHY.fontWeightBold,
     fontSize: TYPOGRAPHY.fontSizeMD,
+  },
+
+  // Banner Offline
+  offlineBanner: {
+    backgroundColor: '#d97706',
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  offlineBannerText: {
+    color: '#ffffff',
+    fontSize: TYPOGRAPHY.fontSizeSM,
+    fontWeight: TYPOGRAPHY.fontWeightBold,
   },
 });
